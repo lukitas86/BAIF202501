@@ -1,0 +1,30 @@
+---
+title: "S1E4.5.6."
+output:
+  html_document:
+    df_print: paged
+---
+
+# Ejercicio 4
+
+Según Hull ([HE6] Introducción a los Mercados de Futuros y Opciones), existen tres teorías principales para explicar la estructura temporal de las tasas de interés:
+
+Preferencia por la Liquidez: Las tasas a plazo son mayores que las tasas cero futuras esperadas porque los acreedores prefieren liquidez y los deudores prefieren préstamos a largo plazo.
+
+Expectativas: Las tasas de interés a largo plazo reflejan las tasas de interés a corto plazo futuras esperadas.
+
+Segmentación del Mercado: Las tasas de interés a corto, mediano y largo plazo están determinadas por la oferta y demanda en sus respectivos mercados, sin necesidad de relación entre ellas.
+
+# Ejercicio 5
+
+Falso
+
+La sensibilidad de un bono a tasa variable no es completamente nula respecto a cambios en la tasa de interés. Aunque los flujos de fondos se ajustan a las tasas de interés en las fechas de reseteo, existe riesgo de tasa entre estos períodos.
+
+Esto se debe a que el primer flujo de fondos ya está determinado en el momento del reseteo de la tasa.
+
+# Ejercicio 6
+
+Empezamos por describir la curva cuando se encuentra normal. Las tasas forward serán crecientes y mayores a la tasa short. En la teoría de preferencia por la liquidez esto indica que existe mayor preferencia por la liquidez.\
+\
+Por otro, lado en la teoría de las expectativas se espera la tasa de interés sea creciente en el tiempo. En el caso de *backwardation* se pueden contraponer ambas teorías. Podría pensarse que si bien los individuos prefieren la liquidez, lo que está estudiado ampliamente en la literatura financiera, las expectativas sobre el nivel de tasas hacen que la curva se invierta.
