@@ -1,0 +1,95 @@
+---
+title: "S1E3"
+output:
+  html_document:
+    df_print: paged
+---
+
+#Borro todos los datos almacenados
+
+```{r}
+rm(list = ls())
+graphics.off()
+```
+
+#Datos del ejercicio
+
+```{r}
+#Vector de períodos
+Periodo <- seq(0.5,3 , by = 0.5)
+
+#Tasa Continua
+Tasa <- 0.12
+
+#Vector de flujos
+Flujos <- c(rep(5,5), 105)
+```
+
+#Punto A
+
+```{r}
+#Vector de descuentos
+FD <- c(1 / (exp(Periodo * Tasa)))
+
+#Calcular Valor Presente
+VP <- Flujos * FD
+
+#Precio es la suma de los VP
+Precio <- sum(VP)
+
+#Rta A
+paste ("El precio del bono es:", Precio)
+```
+
+#Punto B
+
+```{r}
+#La duration se calcula como la suma del (número de periódo por el VP) divido por el precio
+Auxduration <- sum(Periodo *  VP)
+
+Duration <- Auxduration/Precio
+
+#Rta B
+paste ("La duration del bono es:", round(Duration,2))
+```
+
+#Punto C
+
+```{r}
+#Calcular nuevo precio
+PrecioMod <- Precio - (Precio * Duration / 100)
+
+#Rta C
+paste ("El precio del bono ante un aumento de 100 bps es:", PrecioMod)
+
+```
+
+#Punto D
+
+#Método 1. Usando duration.
+
+```{r}
+#Calcular nuevo precio
+PrecioMod2 <- Precio + (Precio * Duration / 100)
+```
+
+#Método 2. Calcular nuevamente usando nueva tasa.
+
+```{r}
+# Nueva tasa
+
+Tasa2 <- Tasa - 1/100
+
+#Vector de descuentos
+FD2 <- c(1 / (exp(Periodo * Tasa2)))
+
+#Calcular Valor Presente
+VP2 <- Flujos * FD2
+
+#Precio es la suma de los VP
+Precio2 <- sum(VP2)
+
+paste ("El precio del bono ante una disinución de 100 bps es:", Precio2, 
+       "y puede aproximarse usando la duration a:", PrecioMod2)
+```
+
