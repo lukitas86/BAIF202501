@@ -1,0 +1,162 @@
+---
+title: "S2E2"
+output:
+  html_document:
+    df_print: paged
+---
+
+#Borro todos los datos almacenados
+
+```{r}
+rm(list = ls())
+graphics.off()
+```
+
+#Cargo las librerías que podría llegar a necesitar
+
+```{r}
+#library (tidyverse)
+library(knitr)
+#library (purrr)
+library (ggplot2)
+#library (tidyr)
+#library (quantmod)
+#library(flextable)
+
+```
+
+#Datos del Ejercicio. Definir vectores para cada activo
+
+```{r}
+Activos <- list(
+  ActivoA = c(4, 5, 6, 7, 8, 5),
+  ActivoB = c(3, 6, 7, 8, 9, 6),
+  ActivoC = c(3, 4, 5, 6, 7, 8),
+  ActivoD = c(1, 4, 5, 6, 7, 10),
+  ActivoE = c(1, 2, 3, 4, 5, 6),
+  ActivoF = c(2, 3, 4, 5, 6, 7)
+)
+```
+
+# Paso 1. Crear una matriz vacía
+
+```{r}
+# Crear un vector con los nombres de las métricas estadísticas
+  Estadistico <- c("Rendimiento", "Desvío", "Sharpe Ratio")
+
+  # Contar el número de estadísticos (número de filas de la matriz)
+  NumEstadistico <- length(Estadistico)
+  
+# Contar el número de activos (columnas de la matriz)
+  NumActivos <- length(Activos)
+  
+# Crear una matriz vacía para almacenar los resultados
+  ResultadoMatriz <- matrix(ncol = NumActivos, nrow = NumEstadistico)
+```
+
+# Paso 2. Calcular datos para llenar la matriz
+
+```{r}
+# Calcular las métricas para cada activo
+  for (i in 1:NumActivos) 
+    {
+    # Rendimiento esperado (promedio)
+    Rend <- mean(Activos[[i]])
+    
+    # Desvío estándar (riesgo)
+    Desv <- sqrt(var(Activos[[i]]))
+    
+    # Ratio de Sharpe (rendimiento/riesgo)
+    SharpeRatio <- Rend / Desv
+  }
+```
+
+# Paso 3. Rellenar la matriz con datos
+
+```{r}
+   
+    
+# Guardar los resultados en la columna correspondiente de la matriz  
+# "%.1f" redondea a un decimal y devuelve como texto
+for (i in 1:NumActivos) {  
+  ResultadoMatriz[, i] <- c(  
+    sprintf("%.1f", mean(Activos[[i]])),  
+    sprintf("%.1f", sqrt(var(Activos[[i]]))),  
+    sprintf("%.1f", mean(Activos[[i]]) / sqrt(var(Activos[[i]])))  
+  )  
+}  
+```
+
+# Paso 4. Convertir la matriz en un data frame para mayor claridad
+
+```{r}
+
+Resultado <- data.frame(
+
+Metrica = Estadistico, # Columna con los nombres de las métricas
+
+ResultadoMatriz       # Agregar la matriz con los resultados
+      )
+
+# Asignar nombres a las columnas según los nombres de los activos
+colnames(Resultado)[-1] <- names(Activos)
+```
+
+# Paso 5. Formatear para que la tabla se vea más bonita
+
+```{r}
+kable(Resultado, caption = "Estadísticas por activo", align = 'c')
+```
+
+# Paso 6. Responder a la consigna
+
+```{r}
+paste ("El activo C domina al D ya que a igual rendimiento, presenta menor desvío")
+paste ("El activo F domina al actrivo E ya que, a igual desvío, presenta mayor rendimiento")
+paste ("El activo B tiene mayor rendimiento que A aunque mayor desvío, se analiza a continuación:")
+```
+
+# Paso 7. (extra) Cálculo de la utilidad esperada (U) para los activos A y B
+
+```{r}
+# Intro: Para evaluar la preferencia entre los activos A y B, utilizamos la fórmula # de utilidad esperada: [BKM, página 170] 
+# U = E(Rendimiento) - (1/2) * A * (Desvío^2)
+# donde "A" es el coeficiente de aversión al riesgo del inversor.
+
+# Calculamos la utilidad de los activos A y B y 
+# determinaremos el valor de A que los hace indiferentes."
+
+RendA <- as.numeric(ResultadoMatriz[1, 1]) # Rendimiento Promedio de Activo A
+RendB <- as.numeric(ResultadoMatriz[1, 2]) # Rendimiento Promedio de Activo B
+DesvA <- as.numeric(ResultadoMatriz[2, 1]) # Desvío Estándar de Activo A
+DesvB <- as.numeric(ResultadoMatriz[2, 2]) # Desvío Estándar de Activo B
+
+# Fórmula de utilidad esperada
+Utilidad <- function(rend, desv, A) {
+  rend - 1/2 * A * (desv^2)
+}
+
+
+```
+
+# Paso 8. Determinar el A de indiferencia
+
+```{r}
+# Igualamos las utilidades de ambos activos para calcular el A que las equilibra
+FuncIndifernencia <- function(rendA, desvA, rendB, desvB) {
+  2 * (rendA - rendB) / (-desvB^2 + desvA^2)
+}
+
+# Calcular el A de indiferencia
+A_indiferencia <- FuncIndifernencia(RendA, DesvA, RendB, DesvB)
+
+paste("El coeficiente de aversión al riesgo (A) de indiferencia entre los activos A y B es:", 
+      round(A_indiferencia, 2))
+
+#Verificación
+UtilidadA <- Utilidad(RendA, DesvA, A_indiferencia)
+UtilidadB <- Utilidad(RendB, DesvB, A_indiferencia)
+
+paste("Según BKM el coeficiente A se sitúa entre 2 y 4, por lo cual para un inversor típico, el portafolio A sería más deseable.  Esto se debe a que para obtener 0.7 más de rendimiento, se debe aceptar 0.6 más de desvío")
+
+```

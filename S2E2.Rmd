@@ -1,0 +1,188 @@
+---
+title: "S2E2"
+output:
+  html_document:
+    df_print: paged
+---
+
+#Borro todos los datos almacenados
+
+```{r}
+rm(list = ls())
+graphics.off()
+```
+
+#Cargo las librerías que podría llegar a necesita
+
+```{r}
+#library (tidyverse)
+library(knitr)
+#library (purrr)
+library (ggplot2)
+#library (tidyr)
+#library (quantmod)
+#library(flextable)
+```
+
+#Datos del ejercicio
+
+```{r}
+Probabilidad <- c(0.1, 0.2, 0.4, 0.2, 0.1)
+n <- length (Probabilidad)
+
+Resultados <- list(
+  ActivoA = c(rep (20,5)),
+  ActivoB = c(0, 10, 20, 30, 40),
+  ActivoC = c(-30, -10, 30, 40, 40),
+  ActivoD = c(rep(30,4), 32),
+  ActivoE = c(40, 10, 33, 30, 50),
+  ActivoF = c(30, 30, 40, 50, 50)
+)
+
+```
+
+# Paso 1. Crear la matriz con los estadísticos
+
+```{r}
+# Inicializar vectores para almacenar resultados
+Rendimientos <- c()
+Desvios <- c()
+Estadistico <- c("Rendimiento", "Desvío", "Sharpe Ratio")
+NumActivos <- length(Resultados) #Es el número de columnas
+ResultadoMatriz <- matrix(ncol = NumActivos, nrow = length(Estadistico)) #La matriz tiene una cantidad de columnas 'NumActivos' y una cantidad de filas 'Estadistico'
+
+paste ("Notar que el ActivoA es libre de riesgo porque siempre rinde 20%")
+
+RiskFree <- 20 #El dato sale del Activo A
+
+# Loop que va calculando los estadísticos de cada activo
+for (i in 1:NumActivos) {
+  # Calcular estadísticos
+  Promedio <-  sum(Probabilidad*Resultados[[i]])
+  Desvio <-  sqrt(sum(Probabilidad * (Resultados[[i]]^2)) - Promedio^2)
+  SharpeRatio <- (Promedio - RiskFree)  / Desvio
+  
+  Rendimientos <- c(Rendimientos, Promedio) #Sirve para graficar
+  Desvios <- c(Desvios, Desvio) #Sirve para graficar
+  
+  # Ir guaradando los resultados en cada columna i
+  ResultadoMatriz [, i] <- c(sprintf("%.1f", Promedio), 
+                             sprintf("%.1f", Desvio), 
+                             sprintf("%.2f", SharpeRatio))
+}
+
+# Convertir en dataframe
+Tabla <- data.frame(
+  Statistic = Estadistico,
+  ResultadoMatriz
+)
+
+# Colocar nombres a las columnas
+colnames(Tabla)[-1] <- names(Resultados)
+
+#Para que la tabla se vea bonita
+kable(Tabla, caption = "Estadísticos de los activos", align = 'c')
+```
+
+# Paso 2. Interpretar los resultados de la tabla
+
+```{r}
+
+
+paste ("Los activos A, D y F forman parte de la frontera eficiente. B no forma parte porque tiene igual rendimiento y mayor desvío que A; C, porque tiene menor rendimiento y mayor desvío que A y E porque tiene igual rendimiento y mayor desvío que D")
+
+# Identificar activos en la frontera eficiente
+FronteraEficiente <- c(TRUE, FALSE, FALSE, TRUE, FALSE, TRUE)  # A, D, F
+
+```
+
+# Paso 3: Graficar
+
+```{r}
+# Crear data frame para graficar
+GraficoData <- data.frame(
+  Activo = names(Resultados),
+  Rendimiento = Rendimientos,
+  Desvio = Desvios,
+  Frontera = FronteraEficiente
+)
+
+#Generar gráfico
+ggplot(GraficoData, aes(x = Desvio, y = Rendimiento, color = Frontera)) +
+  geom_point(aes(shape = Frontera), size = 3) +
+  scale_color_manual(
+    values = c("red", "blue"),  # Colores para No eficiente y Eficiente
+    labels = c("No eficiente", "Eficiente")  # Etiquetas para la leyenda
+  ) +
+  scale_shape_manual(
+    values = c(4, 16),  # Cruz para No eficiente, círculo para Eficiente
+    labels = c("No eficiente", "Eficiente")  # Etiquetas para las formas
+  ) +
+  geom_text(aes(label = Activo), hjust = .5, vjust = 2, size = 3) +  # Agregar etiquetas
+  labs(
+    x = "Desvío",
+    y = "Rendimiento"
+  ) +
+  coord_cartesian(xlim = c(0, 25), ylim = c(0, 50)) +  # Ajustar límites del gráfico
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",  # Colocar la leyenda abajo
+    legend.title = element_blank())  # Eliminar título de la leyenda
+
+
+#Nota: No se porqué se visualizan "a" encima de la cruz y el círculo del gráfico
+```
+
+# Paso 4. (extra) Cálculo de la utilidad esperada (U) para los activos D y F
+
+```{r}
+
+
+# Intro: Para evaluar la preferencia entre los activos D y F, utilizamos la fórmula de 
+# utilidad esperada: [BKM, página 170] 
+# U = E(Rendimiento) - (1/2) * A * (Desvío^2)
+# donde "A" es el coeficiente de aversión al riesgo del inversor.
+
+# Calcularemos la utilidad de los activos D y F y 
+#determinaremos el valor de A que los hace indiferentes."
+
+RendD <- as.numeric(ResultadoMatriz[2, 4]) # Rendimiento Promedio de Activo D
+RendF <- as.numeric(ResultadoMatriz[2, 6]) # Rendimiento Promedio de Activo F
+DesvD <- as.numeric(ResultadoMatriz[3, 4]) # Desvío Estándar de Activo D
+DesvF <- as.numeric(ResultadoMatriz[3, 6]) # Desvío Estándar de Activo F
+
+# Fórmula de utilidad esperada
+Utilidad <- function(rend, desv, A) {
+  rend - 1/2 * A * (desv^2)
+}
+```
+
+# Paso 5. Determinar el A de indiferencia
+
+```{r}
+# Igualamos las utilidades de ambos activos para calcular el A que las equilibra
+FuncIndifernencia <- function(rendD, desvD, rendF, desvF) {
+  2 * (rendD - rendF) / (-desvF^2 + desvD^2)
+}
+
+# Calcular el A de indiferencia
+A_indiferencia <- FuncIndifernencia(RendD, DesvD, RendF, DesvF)
+
+paste("El coeficiente de aversión al riesgo (A) de indiferencia entre los activos D y F es:", 
+      round(A_indiferencia, 2))
+
+#Verificación
+UtilidadD <- Utilidad(RendD, DesvD, A_indiferencia)
+UtilidadF <- Utilidad(RendF, DesvF, A_indiferencia)
+
+paste("Según BKM el coeficiente A se sitúa entre 2 y 4, por lo cual para un inversor típico, el portafolio D sería más deseable.")
+
+#Nota: Este coeficiente de indiferencia indica que solo los inversores con coeficiente
+#por debajo de -0.05 (amantes del riesgo) elegirán el activo F sobre el activo D
+#Este resultado tiene que ver con la función de utilidad que se eligió usar
+#Y presenta una paradoja: según la teoría los inversores son aversos al riesgo
+#Por lo tanto, con esta función de utilidad, el activo F no sería eficiente
+#Además, si el coeficiente A es 0 (neutralidad al riesgo) el portafolio F es preferible al D
+#Con lo cual hay una región, entre 0 y -0.05 en que los amantes del riesgo 
+#Prefieren el activo D al F, pero los neutrales prefieren el F al D - lo cual, evidentemente, constituye una paradoja.
+```
