@@ -1,0 +1,24 @@
+---
+title: "S2E5"
+output:
+  html_document:
+    df_print: paged
+---
+
+#Borro todos los datos almacenados
+```{r}
+rm(list = ls())
+graphics.off()
+```
+
+
+# Punto A
+
+El diagrama b) está incorrectamente dibujado. En la parte ineficiente de la curva existen puntos con mayor rendimiento e igual desvío que el punto C, por lo que no pueden estar en la frontera de mínima varianza. En la parte eficiente, hay puntos con menor rendimiento y mayor desvío de A, por lo que no pueden estar en la frontera óptima.
+
+# Punto B
+
+El conjunto de portafolios eficiente está en el diagrama A, comenzando desde el punto A. Si bien los puntos del segmento C-A tienen mínima varianza (dado el rendimiento), hay otros puntos en el segmento A-B que tienen mayor rendimiento, por lo que los dominan.
+
+# Punto C
+Dado que se conoce la rf, se debe trazar una línea que sea tangente al segmento A-B. El punto en que sea tangente, tendrá el mayor ratio de Sharpe y constituirá la capital market line.

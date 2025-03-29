@@ -1,0 +1,85 @@
+---
+title: "S2E4"
+output:
+  html_document:
+    df_print: paged
+---
+
+#Borro todos los datos almacenados
+```
+{r}
+rm(list = ls())
+graphics.off()
+```
+
+#Cargo las librerías que podría llegar a necesitar
+```{r}
+#library (tidyverse)
+#library(knitr)
+#library (purrr)
+#library (ggplot2)
+#library (tidyr)
+#library (quantmod)
+#library(flextable)
+```
+
+# Punto A
+```{r}
+PortA <- c(18,20)
+PortB <- c(14,20)
+paste ("El portafolio A tiene mayor rendimiento con el mismo desvío por lo cual es dominante")
+```
+
+# Punto C
+
+```{r}
+PortE <- c(14,16)
+PortF <- c(14,10)
+paste ("El portafolio F tiene el mismo rendimiento con el menor desvío por lo cual es dominante")
+
+```
+
+# Punto B
+```{r}
+RendC <- 15
+DesvC <- 18
+RendD <- 13
+DesvD <- 8
+```
+
+En principio no podría saberse cuáL se prefereriría ya que el el portafolio C tiene mayor rendimiento y desvío (esta podría ser la respuesta)
+
+Intuitivamente para ganar 2 puntos de rendimiento, se precisa aumentar 10 puntos de riesgo, lo cual no parecería conveniente
+
+Para evaluar la preferencia entre los activos C y D, utilizamos la fórmula de 
+utilidad esperada: [BKM, página 170] 
+U = E(Rendimiento) - (1/2) * A * (Desvío^2)
+donde "A" es el coeficiente de aversión al riesgo del inversor
+
+```{r}
+# Fórmula de utilidad esperada
+Utilidad <- function(rend, desv, A) {
+  rend - 1/2 * A * (desv^2)
+}
+
+# Igualamos las utilidades de ambos activos para calcular el A que las equilibra
+FuncIndifernencia <- function(rendC, desvC, rendD, desvD) {
+  2 * (rendC - rendD) / (desvC^2 - desvD^2)
+}
+
+# Calcular el A de indiferencia
+A_indiferencia <- FuncIndifernencia(RendC, DesvC, RendD, DesvD)
+
+paste("El coeficiente de aversión al riesgo (A) de indiferencia entre los activos C y D es:", 
+      round(A_indiferencia, 2))
+
+#Verificación
+UtilidadC <- Utilidad(RendC, DesvC, A_indiferencia)
+UtilidadD <- Utilidad(RendD, DesvD, A_indiferencia)
+
+paste("Según BKM el coeficiente A se sitúa entre 2 y 4, por lo cual para un inversor típico, el portafolio D sería más deseable.  Esto se debe a que para obtener 2 más de rendimiento, se debe aceptar 10 más de desvío")
+
+```
+
+
+

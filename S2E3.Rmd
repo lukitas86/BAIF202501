@@ -1,0 +1,215 @@
+---
+title: "S2E3"
+output:
+  html_document:
+    df_print: paged
+---
+
+#Borro todos los datos almacenados
+```{r}
+{r}
+rm(list = ls())
+graphics.off()
+```
+
+#Cargo las librerías que podría llegar a necesitar
+```{r}
+#library (tidyverse)
+library(knitr)
+#library (purrr)
+library (ggplot2)
+#library (tidyr)
+#library (quantmod)
+#library(flextable)
+```
+
+#Datos del ejercicio
+```{r}
+LT <- c(0.06, 0.00)
+ActivoP <- c(0.10, 0.14)
+ActivoQ <- c(0.145, 0.28)
+ActivoR <- c(0.21, 0.26)
+RO1 <- 1
+RO2 <- -1
+RO3 <- 0
+RO4 <- 0.05
+correlations <- c(RO1, RO2, RO3, RO4) 
+```
+
+# Punto A.
+```{r}
+#Calcular rendimiento
+rendPtoAA <- 0.5*LT[1]+0.5*ActivoP[1]
+paste ("El rendimiento de la cartera es: ", rendPtoAA)
+
+#Calcular desvío
+CorrLTActivoP <- 0 #La correlación entre el activo libre de riesgo y cualquier activo
+VarPtoA <- 0.5^2*LT[2]^2+0.5^2*ActivoP[2]^2+2*CorrLTActivoP*0.5*0.5*LT[2]*ActivoP[2] #fórmula de la varianza de dos activos
+DesvPtoA <- sqrt (VarPtoA)
+paste ("El desvío de la cartera es: ", DesvPtoA)
+```
+
+# Punto B.
+```{r}
+#Calcular rendimiento
+rendPtoB <- 0.5*ActivoQ[1]+0.5*ActivoR[1]
+paste ("El rendimiento de la cartera es: ", rendPtoB)
+
+Desvios <- c()
+
+for (RO in correlations) {
+VarPtoB <- (0.5^2)*(ActivoQ[2]^2)+(0.5^2)*(ActivoR[2]^2)+2*RO*ActivoQ[2]*ActivoR[2]*0.5 * 0.5
+DesvioPtoB <- sqrt(VarPtoB)
+
+Desvios <- c(Desvios, DesvioPtoB)
+}
+
+# Crear un dataframe
+df <- data.frame(
+  Ro = c("RO1", "RO2", "RO3", "RO4"),
+  Correlación = c(RO1, RO2, RO3, RO4),
+  Rendimiento = rep(rendPtoB, 4),  # El rendimiento no varía con la correlación
+  Desvío = Desvios  # Mostrar el desvío estándar correspondiente a cada Ro
+)
+
+#Para que la tabla se vea bonita
+kable(df, caption = "Rendimiento y Desvío de cada Ro", align = c('c', 'r', 'r', 'r'), digits = 4) 
+
+```
+
+# Punto c
+
+```{r}
+
+MaxEjeX <- 3
+CantidadDePuntos <- MaxEjeX * 100 + 1
+#Coloco hasta 3 por el punto F(adicional abajo)
+WeightR <- seq(0, MaxEjeX, length.out = CantidadDePuntos) #0, 0.01, 0.02, ..., 3 
+WeightQ <- 1 - WeightR
+ROPtoC <- 0.05
+
+rendPtoC <- WeightR * ActivoR[1] + WeightQ * ActivoQ[1] 
+VarPtoC <- (WeightR^2)*(ActivoR[2]^2)+(WeightQ^2)*(ActivoQ[2]^2)+2 * ROPtoC*ActivoQ[2]*ActivoR[2]*WeightR * WeightQ
+DesvioPtoC <- sqrt(VarPtoC)
+
+# Crear el dataframe a partir de los cálculos
+DfPtoC <- data.frame(
+  Desvío = DesvioPtoC,           # Desvíos calculados
+  Rendimiento = rendPtoC,        # Rendimientos calculados
+  PesoActivoR = WeightR          # Pesos del Activo R
+)
+
+# Graficar
+ggplot(DfPtoC, aes(x = Desvío, y = Rendimiento)) +
+  geom_point(size = 3) +
+  theme_minimal() +
+  labs(
+    title = "Rendimiento vs. Desvío",
+    x = "Desvío",
+    y = "Rendimiento"
+  )
+```
+
+# Punto D. 
+
+Bajo el criterio media varianza la acción Q no está situada en la frontera eficiente
+ya que presenta mayor desvío y menor rendimiento que la acción R
+
+*Acá finaliza el ejercicio*
+
+
+
+
+#Punto E. (adicional). Calcular el portafolio de mínima varianza.
+```{r}
+# Cálculo del portafolio de mínima varianza
+WeightRMinVar <- (ActivoQ[2]^2 - ROPtoC * ActivoQ[2] * ActivoR[2]) / 
+  (ActivoR[2]^2 + ActivoQ[2]^2 - 2 * ROPtoC * ActivoQ[2] * ActivoR[2])
+
+WeightQMinVar <- 1 - WeightRMinVar
+
+# Rendimiento y desvío para el portafolio de mínima varianza
+RendMinVar <- WeightRMinVar * ActivoR[1] + WeightQMinVar * ActivoQ[1]
+VarMinVar <- (WeightRMinVar^2) * (ActivoR[2]^2) +
+  (WeightQMinVar^2) * (ActivoQ[2]^2) +
+  2 * ROPtoC * ActivoR[2] * ActivoQ[2] * WeightRMinVar * WeightQMinVar
+DesvMinVar <- sqrt(VarMinVar)
+
+paste("El portafolio de mínima varianza tiene ponderaciones R y Q respectivamente:", 
+      round(WeightRMinVar, 2), "y", round(WeightQMinVar, 2), 
+      "rendimiento de:", round(RendMinVar, 2), 
+      "y desvío de", round(DesvMinVar, 2))
+```
+
+#Punto F (adicional). Cálculo de portafolios óptimo.
+
+```{r}
+# Pesos del portafolio óptimo
+WeightROpt <- ((ActivoR[1] - LT[1]) * ActivoQ[2]^2 - (ActivoQ[1] - LT[1]) * ROPtoC * ActivoR[2] * ActivoQ[2]) /
+  (ActivoR[2]^2 * ActivoQ[2]^2 * (1 - ROPtoC^2))
+WeightQOpt <- 1 - WeightROpt
+
+# Rendimiento y desvío del portafolio óptimo
+RendOpt <- WeightROpt * ActivoR[1] + WeightQOpt * ActivoQ[1]
+VarOpt <- (WeightROpt^2) * (ActivoR[2]^2) +
+  (WeightQOpt^2) * (ActivoQ[2]^2) +
+  2 * ROPtoC * ActivoR[2] * ActivoQ[2] * WeightROpt * WeightQOpt
+DesvOpt <- sqrt(VarOpt)
+
+#Para la SML creo muchos puntos para trazar la recta
+
+SML_Desvios <- seq(0, MaxEjeX, length.out = CantidadDePuntos)
+
+#Uso los datos del portafolios óptimo (RendOpt y DesvOpt) ya que la recta debe pasar por ahí
+SML_Rendimientos <- LT[1] + (RendOpt - LT[1]) / DesvOpt * SML_Desvios
+
+# Crear los puntos para los portafolios
+ggplot(DfPtoC, aes(x = Desvío, y = Rendimiento)) +
+  geom_point(size = 3) +
+  # Portafolio óptimo
+  annotate("point", x = DesvOpt, y = RendOpt, color = "blue", size = 4) +
+  annotate("text", x = DesvOpt, y = RendOpt, label = "PO", vjust = -1, color = "blue") +
+  # Portafolio de mínima varianza
+  annotate("point", x = DesvMinVar, y = RendMinVar, color = "red", size = 4) +
+  annotate("text", x = DesvMinVar, y = RendMinVar, label = "PMV", vjust = -1, color = "red") +
+  # Security Market Line
+  geom_line(data = data.frame(SML_Desvios, SML_Rendimientos), aes(x = SML_Desvios, y = SML_Rendimientos), color = "black", linetype = "dashed", size = 1) +
+  theme_minimal() +
+  labs(
+    title = "Rendimiento vs. Desvío con SML",
+    x = "Desvío",
+    y = "Rendimiento"
+  )
+
+
+# Crear el dataframe con puntos específicos
+PuntosF <- data.frame(
+  Punto = c("Activo libre de riesgo", "PMV", "PO", 
+            "Punto ineficiente ej. 1", "Punto ineficiente ej. 2", 
+            "Punto eficiente ej. 1", "Punto eficiente ej. 2"),
+  Rendimiento = c(
+    LT[1],  # Rendimiento del activo libre de riesgo
+    RendMinVar,  # Rendimiento del portafolio de mínima varianza
+    RendOpt,  # Rendimiento del portafolio óptimo
+    rendPtoC[10],  # Un punto de la parte ineficiente
+    rendPtoC[20],  # Otro punto de la parte ineficiente
+    rendPtoC[280], # Un punto de la parte eficiente
+    rendPtoC[290]  # Otro punto de la parte eficiente
+  ),
+  Desvío = c(
+    LT[2],  # Desvío del activo libre de riesgo (0 porque no tiene riesgo)
+    DesvMinVar,  # Desvío del portafolio de mínima varianza
+    DesvOpt,  # Desvío del portafolio óptimo
+    DesvioPtoC[10],  # Un punto de la parte ineficiente
+    DesvioPtoC[20],  # Otro punto de la parte ineficiente
+    DesvioPtoC[280], # Un punto de la parte eficiente
+    DesvioPtoC[290]  # Otro punto de la parte eficiente
+  )
+)
+
+# Mostrar el dataframe
+kable(PuntosF, caption = "Algunos puntos seleccionados del gráfico", align = c('l', 'r', 'r'), digits = 4)
+
+```
+
+Notar que el portafolios óptimo shortea la acción Q, que es ineficiente
