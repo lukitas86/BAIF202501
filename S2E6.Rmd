@@ -1,0 +1,217 @@
+---
+title: "S2E6"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: null
+---
+
+#Borro todos los datos almacenados
+```{r}
+rm(list = ls())
+graphics.off()
+```
+
+#Cargo las librerías que podría llegar a necesitar
+```{r}
+library (tidyverse)
+library(knitr)
+#library (purrr)
+library (ggplot2)
+#library (tidyr)
+#library (quantmod)
+library(flextable)
+```
+
+
+#Datos del ejercicio
+```{r}  
+
+Escenarios <- c(0.25, 0.5, 0.2, 0.5)
+Rendimientos <- list(RendA = c(90, 75, 40, 0), 
+                     RendB = c(2, 5, 90, 120))
+```
+
+
+#Crear vectores para guardar los resultados
+```{r} 
+RendTotales <- numeric(length(Rendimientos))
+Var <- numeric(length(Rendimientos))
+Desv <- numeric(length(Rendimientos))
+Sharpe <- numeric(length(Rendimientos))
+```
+
+
+#Loop para calcular los estadísticos
+```{r}
+
+for (i in seq_along(Rendimientos)) {
+  
+  # Rendimiento esperado (ponderado por los escenarios)
+  RendTotales[i] <- sum(Escenarios * Rendimientos[[i]])
+  
+  # La varianza es el escenario (w) x rendimiento del escenario i - Promedio al cuadrado
+  Var[i] <- sum(Escenarios * (Rendimientos[[i]] - RendTotales[i])^2)
+  
+  Desv[i] <- sqrt(Var[i])
+  
+  Sharpe[i] <- (RendTotales[i] / Desv[i])
+}
+```
+
+#Crear el DataFrame con los resultados
+```{r}
+Resultados <- data.frame(
+  Activo = c("A", "B"),  # Nombres de los activos
+  Rendimiento = RendTotales,
+  Desvío = Desv,
+  Sharpe = Sharpe
+)
+```
+
+Hay bastante código porque quiero mostrar un decimal para las 3 medidas
+
+#Asegurar que todas las columnas numéricas tengan 1 decimal fijo
+```{r}
+Resultados <- Resultados %>%
+  mutate(across(where(is.numeric), ~ formatC(.x, format = "f", digits = 1)))
+```
+
+#Mostrar la tabla con kable
+```{r}
+
+kable(Resultados, caption = "Medidas por activo")
+```
+
+#Cálculo del rendimiento del portafolio
+```{r}
+
+PondA <- 0.6
+PondB <- 0.4
+
+RendPort <- PondA * RendTotales[1] + PondB * RendTotales[2]
+```
+
+#Cálculo del desvío del portafolio usando diferentes valores de RO
+```{r}
+RO_values <- seq(-1, 1, by = 0.25)
+DesvioPor_values <- sapply(RO_values, function(RO) {
+  VarPort <- (PondA^2) * Var[1] + (PondB^2) * Var[2] + 2 * RO * Desv[1] * Desv[2] * PondA * PondB
+  DesvioPor <- sqrt(VarPort)
+  return(DesvioPor)
+})
+```
+
+
+#Crear un dataframe para almacenar los resultados
+```{r}
+ResultadosRO <- data.frame(
+  RO = RO_values,
+  Rendimiento = numeric(length(RO_values)),
+  Desvío = numeric(length(RO_values))
+)
+```
+
+#Llenar el dataframe con los valores de rendimiento y desvío calculados
+```{r}
+for (i in seq_along(RO_values)) {
+  RO <- RO_values[i]
+  VarPort <- (PondA^2) * Var[1] + (PondB^2) * Var[2] + 2 * RO * Desv[1] * Desv[2] * PondA * PondB
+  DesvioPor <- sqrt(VarPort)
+  ResultadosRO$Rendimiento[i] <- RendPort
+  ResultadosRO$Desvío[i] <- DesvioPor
+}
+```
+
+
+#Mostrar el dataframe con kable()
+```{r}
+kable(ResultadosRO, digits = 1, caption = "Rendimiento y Desvío para diferentes valores de RO")
+```
+
+Del cuadro de arriba se puede apreciar que, intuitivamente, los portafolios serían dominantes al portafolios A.
+Por ej. el rendimiento del portafolios con Ro 0 tiene mayor rendimiento y menor desvío.
+Para ilustrar este punto mostramos con un Ro de 0.5 la frontera de varianza miníma
+
+#Cálculo de rendimientos y desvíos con RO = 0.5
+```{r}
+RO50 <- 0.5 
+PondA50 <- seq(0, 1, by = 0.01)
+PondB50 <- 1 - PondA50
+
+RendPortRo50 <- PondA50 * RendTotales[1] + PondB50 * RendTotales[2]
+VarPortRo50 <- (PondA50^2) * Var[1] + (PondB50^2) * Var[2] + 2 * RO50 * Desv[1] * Desv[2] * PondA50 * PondB50
+DesvPortRo50 <- sqrt(VarPortRo50)
+
+
+# Encontramos el índice del portafolio de mínima varianza
+IndiceMinVar <- which.min(DesvPortRo50)
+
+# Métricas correspondientes al portafolio de mínima varianza
+PondA_MinVar <- PondA50[IndiceMinVar]
+PondB_MinVar <- PondB50[IndiceMinVar]
+Rend_MinVar <- RendPortRo50[IndiceMinVar]
+Desv_MinVar <- DesvPortRo50[IndiceMinVar]
+```
+
+
+
+#Intento de creación de un gráfico de una sola curva, que presenta un error
+```{r}
+df <- data.frame(Rendimiento = RendPortRo50, Desvío = DesvPortRo50)
+
+ggplot(df, aes(x = Desvío, y = Rendimiento)) +
+  geom_line(color = "blue", linewidth = 1) +
+  annotate("point", x = Desv[1], y = RendTotales[1], color = "red", size = 3) + 
+  annotate("point", x = Desv[2], y = RendTotales[2], color = "green", size = 3) + 
+  annotate("point", x = Desv_MinVar, y = Rend_MinVar, color = "purple", size = 4, shape = 8) + 
+  # Agregar etiquetas
+  annotate("text", x = Desv[1], y = RendTotales[1], label = "A", vjust = -1, color = "red", size = 2) +
+  annotate("text", x = Desv[2], y = RendTotales[2], label = "B", vjust = -1, color = "green", size = 2) +
+  annotate("text", x = Desv_MinVar, y = Rend_MinVar, label = "PMV", vjust = -1, color = "purple", size = 2) +
+  labs(title = "Frontera de Portafolios con RO = 0.50",
+       x = "Desvío (Riesgo)",
+       y = "Rendimiento esperado") +
+  theme_minimal()
+```
+
+
+
+#Crear un gráfico con dos curvas, una desde y otra hasta la frontera eficiente. Esto no arroja error.
+```{r}
+# Crear un dataframe para la frontera completa
+df <- data.frame(Rendimiento = RendPortRo50, Desvío = DesvPortRo50)
+
+# Filtrar la parte ineficiente
+df_ineficiente <- df[1:IndiceMinVar, ]
+
+# Filtrar la parte eficiente
+df_eficiente <- df[IndiceMinVar:nrow(df), ]
+
+# Graficar ambas fronteras en un solo gráfico
+ggplot() +
+  # Línea para la frontera ineficiente
+  geom_line(data = df_ineficiente, aes(x = Desvío, y = Rendimiento), color = "blue", linewidth = 1) +
+  # Línea para la frontera eficiente
+  geom_line(data = df_eficiente, aes(x = Desvío, y = Rendimiento), color = "blue", linewidth = 1) +
+  
+  # Puntos de los activos
+  annotate("point", x = Desv[1], y = RendTotales[1], color = "red", size = 3) + 
+  annotate("point", x = Desv[2], y = RendTotales[2], color = "green", size = 3) + 
+  annotate("point", x = Desv_MinVar, y = Rend_MinVar, color = "purple", size = 4, shape = 8) + 
+  
+  # Agregar etiquetas
+  annotate("text", x = Desv[1], y = RendTotales[1], label = "A", vjust = -1, color = "red", size = 2) +
+  annotate("text", x = Desv[2], y = RendTotales[2], label = "B", vjust = -1, color = "green", size = 2) +
+  annotate("text", x = Desv_MinVar, y = Rend_MinVar, label = "PMV", vjust = -1, color = "purple", size = 2) +
+  
+  labs(title = "Frontera de Portafolios con RO = 0.50",
+       x = "Desvío (Riesgo)",
+       y = "Rendimiento esperado") +
+  theme_minimal()
+```
+
+Conclusión: Para determinar qué portafolios conviene se debe conocer la correlación. Para ciertos niveles de correlación, se puede afirmar que el portafolios domina al activo 1. Para cuál conviene entre el portafolios y el activo 2, se debe conocer la función de utilidad del inversor.
+
+
+
