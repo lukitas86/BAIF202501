@@ -48,16 +48,42 @@ paste ("El precio del bono es:", Precio)
 Auxduration <- sum(Periodo *  VP)
 
 Duration <- Auxduration/Precio
-
-#Rta B
-paste ("La duration del bono es:", round(Duration,2))
 ```
 
-#Punto C
+
+#Para calcular la duration modificada se debe dividir la duration por (1+r)
+
+#Debemos determinar r, que es la TIR que iguala el flujo de fondos a su precio
 
 ```{r}
+#Función para el precio teórico en función de la tasa r
+PrecioBono <- function(r) {
+  sum(Flujos / (1 + r)^Periodo) - Precio
+}
+
+#Buscar la raíz en un rango razonable de tasas (por ejemplo, entre 0 y 20%)
+TIR <- uniroot(PrecioBono, c(0, 0.2))$root
+
+
+# Mostrar resultado
+paste("La duration del bono es:", round(Duration,2) , "y La TIR del bono es:", round(TIR * 100,2), "%")
+```
+
+#Calcular la duration modificada
+```{r}
+ModDuration <- Duration/(1+TIR)
+
+#Rta B
+paste ("La duration modificada del bono es:", round(ModDuration,2))
+
+```
+
+
+
+#Punto C
+```{r}
 #Calcular nuevo precio
-PrecioNuevo <- Precio - (Precio * Duration / 100)
+PrecioNuevo <- Precio - (Precio * ModDuration / 100)
 
 #Rta C
 paste ("El precio del bono ante un aumento de 100 bps es:", PrecioNuevo)
