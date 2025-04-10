@@ -1,0 +1,148 @@
+
+
+---
+title: "S2E7"
+output:
+  html_document:
+    df_print: paged
+---
+
+#Borro todos los datos almacenados
+
+```{r}
+rm(list = ls())
+graphics.off()
+
+```
+
+#Cargo las librerías que podría llegar a necesitar
+
+```{r}
+library (tidyverse)
+library(knitr)
+#library (purrr)
+library (ggplot2)
+#library (tidyr)
+#library (quantmod)
+library(flextable)
+```
+
+#Datos del ejercicio
+
+```{r}
+Activo1 <- c(0.07, 0.03) # Rendimiento y desvío est.
+Activo2 <- c(0.11, 0.08) 
+
+#Ponderaciones
+Pond1 <- c(0, 0.2, .4, .6, .65, .7, .73, .75, .8, .85, .88, .9, .95, 1)
+Pond2 <- c(1-Pond1)
+
+#Correlaciones           
+RO <- c(1, -1, 0)
+```
+
+#Calcular rendimiento
+
+#Nota: No es función de sigma
+```{r}
+Rendimento <- Pond1 * Activo1[1] + Pond2 * Activo2[1]
+```
+
+#Calcular los desvíos para cada RO
+```{r}
+# Iniciar lista para almacenar los desvíos del portafolio
+SigmaPort <- list()
+
+#Función para calcular los sigma por cada Ro
+for (variantes in RO) {
+  AuxSigmaPort <- Pond1^2 * Activo1[2]^2 + Pond2^2 * Activo2[2]^2 +
+    2 * variantes * Pond1 * Pond2 * Activo1[2] * Activo2[2]
+  
+# Guardar el resultado en la lista SigmaPort
+# paste0 es un texto con un espacio en el medio (Ej RO -1 en vez de RO-1)
+  
+SigmaPort[[paste0("RO: ", variantes)]] <- sqrt(AuxSigmaPort)
+}
+
+```
+
+
+#Crear una tabla
+```{r}
+# Crear un DataFrame con los resultados de rendimiento
+Resultados <- data.frame(Pond1 = Pond1, Rendimiento = Rendimento)
+
+
+# Agregar los desvíos (SgimaPort) calculados para cada RO
+for (n in RO) {
+  Resultados[[paste0("RO: ", n)]] <- SigmaPort[[paste0("RO: ", n)]]
+}
+
+# Formatear números con 2 decimales para la tabla, manteniendo los valores como texto
+Resultados <- Resultados %>%
+  mutate(across(where(is.numeric), ~ format(round(.x, 2), nsmall = 2)))
+
+# Crear tabla formateada con flextable
+TablaResultados <- Resultados %>%
+  flextable() %>%
+  set_caption("Medidas del Portafolio") %>%
+  autofit() %>%  # Ajusta ancho automático de columnas
+  theme_booktabs() %>%  # Más prolijo que theme_vanilla
+  fontsize(size = 10, part = "all") %>%
+  align(align = "center", part = "all")
+
+# Mostrar la tabla
+TablaResultados
+```
+
+#Crear gráfico
+```{r}
+# Crear un DataFrame para el gráfico, incluyendo todos los puntos para cada RO
+ResultadosGrafico <- expand.grid(Pond1 = Pond1, RO = RO) %>%
+  mutate(Pond2 = 1 - Pond1) %>%
+  mutate(
+    Rendimiento = Pond1 * Activo1[1] + Pond2 * Activo2[1],
+    Sigma = sqrt(Pond1^2 * Activo1[2]^2 + Pond2^2 * Activo2[2]^2 + 
+                   2 * RO * Pond1 * Pond2 * Activo1[2] * Activo2[2])
+  )
+
+# Filtrar y ordenar los datos para RO = 1, 0 y -1
+ResultadosRo1 <- ResultadosGrafico %>%
+  filter(RO == 1) %>%
+  arrange(Pond1)
+
+ResultadosRo0 <- ResultadosGrafico %>%
+  filter(RO == 0) %>%
+  arrange(Pond1)
+
+ResultadosRoMenos1 <- ResultadosGrafico %>%
+  filter(RO == -1) %>%
+  arrange(Pond1)
+
+# Crear gráfico con líneas iterativas para los tres casos de RO
+ggplot() +
+  # Añadir la curva para RO = 1
+  geom_segment(data = ResultadosRo1, 
+               aes(x = Sigma, y = Rendimiento, xend = lead(Sigma), yend = lead(Rendimiento)),
+               color = "blue", size = 1) +
+  geom_point(data = ResultadosRo1, aes(x = Sigma, y = Rendimiento), color = "blue", size = 2) +
+  
+  # Añadir la curva para RO = 0
+  geom_segment(data = ResultadosRo0, 
+               aes(x = Sigma, y = Rendimiento, xend = lead(Sigma), yend = lead(Rendimiento)),
+               color = "red", size = 1) +
+  geom_point(data = ResultadosRo0, aes(x = Sigma, y = Rendimiento), color = "red", size = 2) +
+  
+  # Añadir la curva para RO = -1
+  geom_segment(data = ResultadosRoMenos1, 
+               aes(x = Sigma, y = Rendimiento, xend = lead(Sigma), yend = lead(Rendimiento)),
+               color = "green", size = 1) +
+  geom_point(data = ResultadosRoMenos1, aes(x = Sigma, y = Rendimiento), color = "green", size = 2) +
+  
+  labs(title = "Fronteras de Portafolios para RO = 1, 0 y -1",
+       x = "Desvío (Sigma)",
+       y = "Rendimiento Esperado") +
+  theme_minimal()
+```
+
+

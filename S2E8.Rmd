@@ -1,0 +1,45 @@
+
+---
+title: "S2E7"
+output:
+  html_document:
+    df_print: paged
+---
+
+#Borro todos los datos almacenados
+
+```{r}
+rm(list = ls())
+graphics.off()
+```
+
+#Datos del ejercicio
+
+```{r}
+Ponderadores <- c(0.2, 0.7, 0.1)
+Varianzas <- c(0.64, 0.09, 0.16)
+Covarianzas <- c(0.22, 0.16, 0.02)
+```
+
+
+# Método de fuerza bruta
+```{r}
+VarPort <-    Ponderadores[1]^2 * Varianzas [1] +
+              Ponderadores[2]^2 * Varianzas [2] +
+              Ponderadores[3]^2 * Varianzas [3] + 
+              2 * Ponderadores[1] * Ponderadores[2] * Covarianzas [1] +
+              2 * Ponderadores[1] * Ponderadores[3] * Covarianzas [2] +
+              2 *Ponderadores[2] * Ponderadores[3] * Covarianzas [3]
+
+paste("La varianza del portafolios es:", VarPort)
+```
+
+# Método elegante
+
+```{r}
+VarPort2 <- sum(Ponderadores^2 * Varianzas) + 
+  2 * sum(Ponderadores[c(1, 1, 2)] * Ponderadores[c(2, 3, 3)] * Covarianzas)
+
+paste("La varianza del portafolios es:", VarPort2)
+```
+
