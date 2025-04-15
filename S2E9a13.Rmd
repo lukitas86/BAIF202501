@@ -1,0 +1,357 @@
+---
+title: "Ejercicios S2E9 a S2E13"
+output:
+  html_document:
+    df_print: paged
+---
+
+Borro todos los datos almacenados
+
+```{r}
+rm(list = ls())
+graphics.off()
+
+```
+
+## S2E9
+
+## Punto A
+
+**Pregunta:**\
+Si el rendimiento de una acción es negativo, entonces necesariamente tiene un beta negativo.
+
+**Respuesta:**\
+El rendimiento de una acción puede ser negativo **aunque tenga un beta positivo**, si el rendimiento del mercado es suficientemente bajo (o negativo).
+
+Procedo a mostrar con un ejemplo
+
+```{r}
+# Definimos los valores
+Rf <- 0.04     # Tasa libre de riesgo (4%)
+Rm <- -0.02    # Rendimiento del mercado (-2%)
+Beta <- 1.5    # Beta positivo
+
+# Calculamos el rendimiento esperado con CAPM
+Rendimiento <- Rf + Beta * (Rm - Rf)
+
+# Mostramos el resultado
+Rendimiento
+```
+
+**\#** **Falso**
+
+## Punto B
+
+**Pregunta:**\
+El CAPM dice que el rendimiento de una acción es igual a su beta por el rendimiento del mercado.
+
+**Respuesta:**\
+Debería decir "rendimiento por sobre el libre de riesgo".
+
+**\#** **Falso**
+
+## Punto C
+
+**Pregunta:**\
+Una acción por debajo de la línea del mercado está subvaluada.
+
+**Respuesta:**\
+Si una acción está por debajo de la línea del mercado de valores (SML), tiene un rendimiento esperado menor al que correspondería por su riesgo, lo que indica que está sobrevaluada.
+
+**\#** **Falso**
+
+# S2E10
+
+## Punto A
+
+**Pregunta:**\
+Un portafolio bien diversificado es aquel en que todos los activos individualmente están diversificados.
+
+**Respuesta:**\
+Los inversionistas pueden reducir el riesgo comprando diferentes activos.\
+No precisan que cada activo en sí esté diversificado.
+
+**\#** **Falso**
+
+## Punto B
+
+**Pregunta:**\
+Si todas las acciones están perfectamente correlacionadas, entonces no se puede reducir el riesgo a través de la diversificación.
+
+**Respuesta:**\
+Bajo CAPM, el riesgo de un portafolio se mide por la desviación estándar.\
+Si todas las acciones estuvieran perfectamente correlacionadas, la diversificación no reduciría el riesgo.
+
+**\#** **Verdadero**
+
+## Punto C
+
+**Pregunta:**\
+La diversificación permite eliminar completamente el riesgo de un portafolio.
+
+**Respuesta:**\
+La diversificación reduce el riesgo idiosincrático, pero no elimina el riesgo sistemático, que es el que afecta a todo el mercado.\
+Además, existen otros riesgos no financieros (operativos, regulatorios, etc.) que no se eliminan con la diversificación.
+
+**\#** **Falso**
+
+## Punto D
+
+**Pregunta:**\
+La diversificación no reduce el riesgo si las acciones están correlacionadas.
+
+**Respuesta:**\
+La diversificación funciona siempre que los activos no estén perfectamente correlacionados.\
+Incluso si hay cierta correlación, aún se logra una reducción del riesgo.
+
+**\#** **Falso**
+
+## Punto E
+
+**Pregunta:**\
+Una acción con alta desviación estándar siempre contribuye más al riesgo del portafolio que una con baja desviación estándar.
+
+**Respuesta:**\
+Bajo CAPM, la contribución de una acción al riesgo del portafolio depende de su beta, no de su desviación estándar.\
+Una acción con alta desviación estándar podría tener una beta baja y contribuir menos al riesgo del portafolio que otra con menor desviación pero mayor beta.
+
+**\#** **Falso**
+
+## Punto F
+
+**Pregunta:**\
+La contribución de una acción al riesgo de un portafolio bien diversificado depende de su riesgo de mercado.
+
+**Respuesta:**\
+En un portafolio bien diversificado, el riesgo idiosincrático se reduce al mínimo, y la contribución de una acción al riesgo del portafolio depende principalmente de su beta, que mide su riesgo sistemático (riesgo de mercado).
+
+**\#** **Verdadero**
+
+## Punto G
+
+**Pregunta:**\
+Un portafolio bien diversificado con una beta de 2.0 es dos veces más riesgosa que el portafolio de mercado.
+
+**Respuesta:**\
+Un portafolio con beta 2.0 no es exactamente el doble de riesgoso que el mercado en términos absolutos, sino en términos de exceso de rendimiento sobre la tasa libre de riesgo.\
+La relación de riesgo es relativa a Rf.
+
+**\#** **Falso**
+
+## Punto H
+
+**Pregunta:**\
+Un portafolio no diversificado con una beta de 2.0 es menos del doble de riesgosa que el portafolio de mercado.
+
+**Respuesta:**\
+Un portafolio no diversificado con beta 2.0 podría tener un riesgo total mayor que el doble del riesgo del mercado, debido a que la relación de riesgo es relativa al riesgo sistemático y no captura el riesgo específico.
+
+**\#** **Falso**
+
+Ilustro con un ejemplo
+
+Este código muestra que la **beta** queda cerca de 2, pero la **volatilidad total** (desvío estándar) de la acción puede ser bastante más del doble que la del mercado, por la presencia del ruido específico.
+
+```{r}
+#Seed para que siempre dé lo mismo
+set.seed(2025)
+
+# Generamos 10 millones de rendimientos del mercado con media 0.001 y sd = 0.02
+RendMercado <- rnorm(10000000, mean = 0.001, sd = 0.02)
+
+# Creamos un rendimiento de la acción con beta ≈ 2 y  ruido específico
+RuidoEspecifico <- rnorm(10000000, mean = 0, sd = 0.05)  # Riesgo idiosincrático
+RendAccion <- 2 * RendMercado + RuidoEspecifico
+
+# Cálculo de beta
+Beta <- cov(RendAccion, RendMercado) / var(RendMercado)
+
+# Cálculo de desvíos estándar
+DesvioMercado <- sd(RendMercado)
+DesvioAccion <- sd(RendAccion)
+
+# Mostramos resultados
+cat("Beta:", round(Beta, 4), "\n")
+cat("Desvío estándar del mercado:", round(DesvioMercado, 4), "\n")
+cat("Desvío estándar de la acción:", round(DesvioAccion, 4), "\n")
+```
+
+# S2E11
+
+**Pregunta:**\
+¿En cuál de los siguientes casos la diversificación reduce más el riesgo?\
+a) Ambos activos tienen el mismo desvío estándar.\
+b) Ambos activos tienen beta igual a uno.\
+c) Ambos activos tienen la misma rentabilidad esperada.\
+d) Hay una correlación negativa perfecta.
+
+**Respuesta:**
+
+Opción d): cuando la correlación entre las dos acciones es perfectamente negativa (-1).
+
+#Justificación
+
+La desviación estándar de un portafolio con dos activos se calcula como:
+
+$$
+\sigma_p = \sqrt{w_A^2 \cdot \sigma_A^2 + w_B^2 \cdot \sigma_B^2 + 2 \cdot w_A \cdot w_B \cdot \rho \cdot \sigma_A \cdot \sigma_B}
+$$
+
+Donde:
+
+-   $\sigma_p$: desviación estándar del portafolio\
+-   $w_A, w_B$: pesos de los activos A y B\
+-   $\sigma_A, \sigma_B$: desviaciones estándar de A y B\
+-   $\rho$: correlación entre A y B
+
+Si $\rho = -1$, la fórmula se convierte en:
+
+$$
+\sigma_p = \sqrt{w_A^2 \cdot \sigma_A^2 + w_B^2 \cdot \sigma_B^2 - 2 \cdot w_A \cdot w_B \cdot \sigma_A \cdot \sigma_B}
+$$
+
+Para que el riesgo total del portafolio sea cero ($\sigma_p = 0$):
+
+$$
+w_A^2 \cdot \sigma_A^2 + w_B^2 \cdot \sigma_B^2 - 2 \cdot w_A \cdot w_B \cdot \sigma_A \cdot \sigma_B = 0
+$$
+
+Notar que se trata de un binomio cuadrado perfecto, con lo cual
+
+$$
+(w_A \cdot \sigma_A - w_B \cdot \sigma_B)^2 = 0
+$$
+
+Lo que está dentro debe ser 0, por lo que
+
+$$
+w_A \cdot \sigma_A = w_B \cdot \sigma_B
+\quad \Rightarrow \quad
+\frac{w_A}{w_B} = \frac{\sigma_B}{\sigma_A}
+$$
+
+Esto significa que si asignamos los pesos en proporción inversa a sus desviaciones estándar,
+
+el riesgo del portafolio puede ser cero.
+
+**\#** **Verdadero**
+
+# S2E12
+
+Supóngase que la desviación estándar del rendimiento de mercado es 20%.
+
+```{r}
+StdDevMerc <- 0.2
+```
+
+
+## Punto A
+
+**Pregunta:**\
+¿Cuál es la desviación estándar de los rendimientos de un portafolio bien diversifica do cuya beta es de 1,3?
+
+**Respuesta:**\
+Sí. El desvío estándar se calcula como:
+
+```{r}
+
+BetaA <- 1.3
+DesvA <- BetaA * StdDevMerc
+paste("Desvío estándar punto A:", DesvA)
+```
+
+Justificación\
+\
+Cuando una acción **está perfectamente correlacionada** con el mercado (ρ = 1), su **desvío estándar (volatilidad)** se relaciona con la del mercado a través del **beta**:
+
+$$
+\text{Desvío estándar de la acción} = \beta \times \text{Desvío estándar del mercado}
+$$
+
+Esta relación se basa en la definición de beta:
+
+$$
+\beta = \frac{\text{Cov}(R_a, R_m)}{\text{Var}(R_m)} = \rho_{a,m} \cdot \frac{\sigma_a}{\sigma_m} \Rightarrow \sigma_a = \beta \cdot \sigma_m \quad \text{si } \rho = 1
+$$
+
+## Punto B
+
+**Pregunta:**
+
+¿Cuál es la desviación estándar de los rendimientos de un portafolio bien diversifica da cuya beta es de 0?
+
+**Respuesta:**\
+Si bien su riesgo sistemático es cero (no se mueve con el mercado), **puede tener riesgo idiosincrático**, por lo tanto su desvío estándar total puede ser mayor que cero. El cálculo `BetaB * StdDevMerc` da 0, pero solo considera el componente sistemático.
+
+Ejemplo
+
+En este ejemplo la acción tiene un desvío mucho más alto que el mercado y la correlación es casual.
+
+```{r}
+#Seed para que siempre dé lo mismo
+set.seed(2025)
+
+# 10 millones de rendimientos del mercado con una distribución normal
+RendMercado <- rnorm(10000000, mean = 0.001, sd = 0.02)
+
+# 10 millones de de rendimientos de la acción independientes del mercado
+RendAccion <- rnorm(10000000, mean = 0.001, sd = 1)
+
+# Cálculo de beta
+Beta <- cov(RendAccion, RendMercado) / var(RendMercado)
+
+# Desvío estándar de la acción
+DesvioAccion <- sd(RendAccion)
+
+# Mostrar resultados
+cat("Beta:", round(Beta, 4), "\n")
+cat("Desvío estándar:", round(DesvioAccion, 4), "\n")
+```
+
+## Punto C
+
+**Pregunta:**\
+Un portafolio bien diversificado tiene una desviación estándar de 15%. ¿Cuál es su beta?
+
+**Respuesta:**\
+Aplicando la fórmula inversa:
+
+```{r}
+DesvC <- 0.15
+BetaC <- DesvC / StdDevMerc  
+```
+
+Esto asume que **no hay riesgo idiosincrático**, es decir, que la acción está perfectamente diversificada.
+
+## Punto D
+
+**Pregunta:**\
+Un portafolio deficientemente diversificado tiene una desviación estándar de 20%. ¿Qué se puede decir acerca de su beta?
+
+**Respuesta:**\
+Depende. Si está bien diversificado, entonces:
+
+```{r}
+DesvD <- 0.2
+BetaD <- DesvD / StdDevMerc
+```
+
+Pero si **no está diversificado**, el riesgo total incluye riesgo idiosincrático, por lo que su beta será **menor**. En ese caso, el portafolio tiene el mismo desvío que el mercado, pero **más riesgo específico y menos sistemático**.
+
+# S2E13
+
+## Punto A
+
+**Pregunta:**\
+La beta de un portafolio con 10 acciones, de las cuales 5 tienen beta 1.2 y 5 tienen beta 1.4, ¿Cuál es la beta del portafolio?
+
+**Respuesta:**\
+Se calcula como el promedio ponderado de las betas:
+
+```{r}
+(BetaP <- (5/10) * 1.2 + (5/10) * 1.4)
+
+```
+
+**Justificación**\
+La **beta del portafolio** se calcula como el **promedio ponderado de las betas individuales**, usando como pesos la proporción de inversión en cada activo. No se ve afectada por el riesgo idiosincrático porque **la beta representa solo la sensibilidad del portafolio al mercado (riesgo sistemático)**.
