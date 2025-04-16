@@ -1,0 +1,108 @@
+---
+title: "S2E14"
+output:
+  html_document:
+    df_print: paged
+---
+
+#Borro todos los datos almacenados
+
+```{r}
+rm(list = ls())
+graphics.off()
+
+```
+
+#Cargo las librerías que podría llegar a necesitar
+
+```{r}
+#library (tidyverse)
+#library(knitr)
+#library (purrr)
+library (ggplot2)
+library(ggrepel)
+#library (tidyr)
+#library (quantmod)
+#library(flextable)
+```
+
+#Datos del ejercicio
+
+```{r}
+RendimientoBruto <- c(10, 12.5, 15, 16, 17, 18, 18, 20)
+Desvio <- c(23, 21, 25, 29, 29, 32, 35, 45)
+```
+
+# Punto A
+
+```{r}
+# Dataframe con datos
+portafolio <- data.frame(
+  Portafolio = c("A", "B", "C", "D", "E", "F", "G", "H"),
+  Rendimiento = c(10, 12.5, 15, 16, 17, 18, 18, 20),
+  Desvio = c(23, 21, 25, 29, 29, 32, 35, 45)
+)
+
+# Graficar
+ggplot(portafolio, aes(x = Desvio, y = Rendimiento, label = Portafolio)) +
+  geom_point(size = 3) +                               # Punto
+  geom_text_repel() +                                  # GGrepl hace lucir OK
+  labs(x = "Desvío estándar (σ, %)",                   # Etiquetas eje X
+       y = "Rendimiento esperado (r, %)",              # Etiquetas eje Y
+       title = "Portafolio: Rendimiento vs Desvío estándar") + 
+  theme_minimal()   
+```
+
+# Punto B
+
+El portafolios A es dominado por B, el D por el E, y el G por el F.
+
+# Punto C
+
+```{r}
+Rf <- 12
+
+#Rendimiento sobre la tasa libre de riesgo
+RendimientoNeto <- RendimientoBruto - Rf 
+
+#Calcular el coeficiente de Sharpe
+Sharpe <- RendimientoNeto/Desvio
+
+# Encontrar el activo con máximo Sharpe
+ActivoMaxSharpe <- which.max(Sharpe)
+
+#Mostrar el rendimiento, desvío e índice de Sharpe que corresponde al portafolios con máximo Sharpe
+MaxRendimiento <- RendimientoNeto[ActivoMaxSharpe]
+MaxDesvio <- Desvio[ActivoMaxSharpe]
+MaxSharpe <- Sharpe[ActivoMaxSharpe]
+
+paste("El portafolio con máximo Sharpe es el número:" , ActivoMaxSharpe , 
+      "con un rendimiento neto de:" ,  MaxRendimiento
+      , "y un desvío de :" , MaxDesvio , 
+      "Su índice Sharpe es : ", MaxSharpe)
+```
+
+# Punto D
+
+El portafolios C tiene un rendimiento de 15% con un desvío del 25%".
+
+# Punto Extra. ¿Cuál sería el rendimiento si pudiese tomar prestado?
+
+```{r}
+DesvObjetivo <- 25
+
+#Calcular Cuáles serían las ponderaciones de ese portafolios
+
+PondPortafoliosMax <- DesvObjetivo/MaxDesvio
+PondRiskFree <- 1- PondPortafoliosMax
+
+paste("Si se puediese pedir prestado o prestar a la Rf la proporción invertida en el portafolios óptimo sería:", PondPortafoliosMax * 100, "%")
+
+#Calcular el rendimiento máximo con un Sharpe igual al máximo
+
+RendBruto <- PondPortafoliosMax * MaxRendimiento
+
+RendNeto <- RendBruto + Rf
+
+paste("Si pudiera pedir prestado o prestar a la Rf el rendimiento sería :", RendNeto,"%")
+```

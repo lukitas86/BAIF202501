@@ -1,0 +1,242 @@
+---
+title: "S2E15"
+output:
+  html_document:
+    df_print: paged
+---
+
+#Borro todos los datos almacenados
+
+```{r}
+rm(list = ls())
+graphics.off()
+
+```
+
+#Cargo las librerías que podría llegar a necesitar
+
+```{r}
+library (tidyverse)
+#library(knitr)
+library (purrr)
+library (ggplot2)
+library (tidyr)
+library (quantmod)
+#library(flextable)
+```
+
+#Datos del ejercicio
+
+```{r}
+#Acciones
+RendAcciones <- .20
+DesvAcciones <- .18
+
+#Bonos
+RendBonos <- .12
+DesvBonos <- .15
+
+Rho <- c(-1, -0.5, 0, 0.5, 1)
+
+PesoBonos <- seq(-0.5, 1.5, by = 0.01)
+PesoAcciones <- 1 - PesoBonos
+```
+
+# Punto A
+
+```{r}
+#Calcular rendimiento
+RendP <- PesoBonos * RendBonos  + PesoAcciones * RendAcciones
+
+#Calcular desvío en función de las diferentes variables de la fórmula clásica de la 
+#varianza de un portafolios de 2 activos
+CalcularDesvio <- function(PesoBonos, PesoAcciones, DesvBonos, DesvAcciones, Rho) {
+  sqrt(PesoBonos^2 * DesvBonos^2 + PesoAcciones^2 * DesvAcciones^2 + 
+         2 * PesoBonos * PesoAcciones * DesvBonos * DesvAcciones * Rho)
+}
+```
+
+Procedo a calcular el desvío estándar de la cartera para cada nivel de correlación en Rho
+
+Aplico la función CalcularDesvio() a cada valor de Rho usando map_dfc().
+
+Esto genera un data frame donde cada columna representa el desvío estándar
+
+para una correlación específica (por ejemplo, Rho = -1, Rho = -0.5, etc.)
+
+```{r}
+DesvioPortafolios <- map_dfc(Rho, function(r) {
+  CalcularDesvio(PesoBonos, PesoAcciones, DesvBonos, DesvAcciones, r)
+})
+```
+
+Renombro las columnas del data frame para que sean más descriptivas
+
+Uso paste0() para agregar "Rho\_" al valor de cada correlación.
+
+Esto facilita la interpretación de los datos en el data frame.
+
+```{r}
+names(DesvioPortafolios) <- paste0("Rho_", gsub("-", "m", Rho))
+```
+
+Creo un data frame final que incluya los pesos de los activos, el rendimiento esperado de la cartera
+
+y los desvíos estándar calculados. Este dataframe nos servirá para los dos gráficos.
+
+```{r}
+DataFrameEj15 <- data.frame(PesoBonos, PesoAcciones, RendP) %>%
+  bind_cols(DesvioPortafolios)
+```
+
+## Gráfico1: retorno - ponderaciones
+
+Preparar los datos para graficar en el espacio retorno - ponderaciones
+
+Se incluyen los pesos del activo 2 y los desvíos estándar calculados previamente.
+
+```{r}
+GraficoRetPes <- data.frame(PesoAcciones) %>%
+  bind_cols(DesvioPortafolios)  # Agregar las columnas de desvío estándar
+
+# Convertir a data frame
+GraficoRetPes <- as.data.frame(GraficoRetPes)
+
+#Graficar
+ggplot(GraficoRetPes, aes(x = PesoAcciones)) +
+  geom_line(aes(y = Rho_1), color = 'black') +  
+  geom_line(aes(y = Rho_0.5), color = 'black', linetype = 'dashed') +  
+  geom_line(aes(y = Rho_0), color = 'magenta') +  
+  geom_line(aes(y = Rho_m0.5), color = 'black', linetype = 'dashed') +  
+  geom_line(aes(y = Rho_m1), color = 'black', linetype = 'dashed') +  
+  geom_hline(yintercept = 0, color = 'black') +  
+  labs(
+    x = "Ponderación de acciones",
+    y = "Desvío Estándar",
+    title = "Desvíos en función de la ponderación de acciones"
+  ) +
+  theme_minimal()
+```
+
+## Gráfico2: rendimiento - riesgo del portafolio
+
+Hacer este gráfico con geom_line directamente no sirve ya que ordena por desvío.
+
+Hay dos opciones
+
+### Opción a: Usar geom_point 
+
+```{r}
+ggplot(DataFrameEj15, aes(y = RendP)) +
+  geom_point(aes(x = Rho_1), color = 'black') +
+  geom_point(aes(x = Rho_0.5), color = 'magenta') +
+  geom_point(aes(x = Rho_0), color = 'magenta') +
+  geom_point(aes(x = Rho_m0.5), color = 'magenta') +
+  geom_point(aes(x = Rho_m1), color = 'black') +
+  geom_hline(yintercept = 0, color = 'black') +
+  labs(title = "Rendimiento esperado y desvío estándar según Rho",
+       x = "Desvío Estándar",
+       y = "Retorno Esperado") +
+  theme_minimal()
+
+```
+
+### Opción b: Usar geom_line
+
+Dividir a las curvas en dos segmentos a partir del portafolio de mínima varianza
+
+```{r}
+# Crear una lista para almacenar los datos divididos por Rho
+segmentos <- list()
+
+# Iterar sobre cada Rho para dividir los datos correctamente
+for (col in names(DesvioPortafolios)) {
+  indice_min_var <- which.min(DataFrameEj15[[col]])  # Encuentra el mínimo desvío estándar
+  
+  # Dividir en dos segmentos
+  DataFrameMenor <- DataFrameEj15[1:indice_min_var, c(col, "RendP")]
+  DataFrameMayor <- DataFrameEj15[indice_min_var:nrow(DataFrameEj15), c(col, "RendP")]
+  
+  # Guardar en la lista con su respectiva clave
+  segmentos[[paste0(col, "_Menor")]] <- DataFrameMenor
+  segmentos[[paste0(col, "_Mayor")]] <- DataFrameMayor
+}
+
+# Graficar todas las curvas con colores diferenciados
+
+ggplot() +
+  # Curva Rho = 1
+  geom_line(data = segmentos[["Rho_1_Menor"]], aes(x = Rho_1, y = RendP), color = "black") +
+  geom_line(data = segmentos[["Rho_1_Mayor"]], aes(x = Rho_1, y = RendP), color = "black") +
+  
+  # Curva Rho = 0.5
+  geom_line(data = segmentos[["Rho_0.5_Menor"]], aes(x = Rho_0.5, y = RendP), color = "black" , linetype = 'dashed') +
+  geom_line(data = segmentos[["Rho_0.5_Mayor"]], aes(x = Rho_0.5, y = RendP), color = "black" , linetype = 'dashed') +
+  
+  # Curva 3 Rho = 0
+  geom_line(data = segmentos[["Rho_0_Menor"]], aes(x = Rho_0, y = RendP), color = "magenta") +
+  geom_line(data = segmentos[["Rho_0_Mayor"]], aes(x = Rho_0, y = RendP), color = "magenta") +
+  
+  # Curva 4 Rho = -0.5
+  geom_line(data = segmentos[["Rho_m0.5_Menor"]], aes(x = Rho_m0.5, y = RendP), color = "black" , linetype = 'dashed') +
+  geom_line(data = segmentos[["Rho_m0.5_Mayor"]], aes(x = Rho_m0.5, y = RendP), color = "black" , linetype = 'dashed') +
+  
+  # Curva 5 Rho = -1
+  geom_line(data = segmentos[["Rho_m1_Menor"]], aes(x = Rho_m1, y = RendP), color = "black" , linetype = 'dashed') +
+  geom_line(data = segmentos[["Rho_m1_Mayor"]], aes(x = Rho_m1, y = RendP), color = "black" , linetype = 'dashed') +
+  
+  geom_hline(yintercept = 0, color = 'black') +
+  labs(title = "Rendimiento esperado y desvío estándar según Rho",
+       x = "Desvío Estándar",
+       y = "Retorno Esperado") +
+  theme_minimal()
+```
+
+# Punto B
+
+```{r}
+Rf <- .06  # Tasa libre de riesgo
+
+#Calcular CAL
+
+Sharpe <- (DataFrameEj15$RendP - Rf) / DataFrameEj15$Rho_0.5  # Pendiente de la CAL
+
+# Crear DataFrame con los valores relevantes
+DataFrameCAL <- data.frame(PesoBonos, PesoAcciones, RendP, DataFrameEj15$Rho_0.5, Sharpe)
+
+MaximoSharpe <- which.max(DataFrameCAL$Sharpe) #función para encontrar el máximo Sharpe
+
+#Frase escrita en base a lo anterior
+
+paste ("El portafolio que maximiza el ratio de Sharpe con una tasa libre de riesgo de",
+       Rf, " está compuesto por ", DataFrameCAL[MaximoSharpe, 1], " en deuda, y ",
+       DataFrameCAL[MaximoSharpe, 2], " en acciones. Conduce a un rendimento de ",
+       DataFrameCAL[MaximoSharpe, 3], "con un desvío de ", round(DataFrameCAL[MaximoSharpe, 4], 4) )
+```
+
+## Gráfico retorno - desvío
+
+```{r}
+ggplot() + 
+  # Dibujar la frontera
+  geom_path(data = DataFrameEj15, aes(y = RendP * 100, x = Rho_0.5 * 100), color = 'black', linewidth = 0.5) +
+  # Línea de mercado de capitales
+  geom_abline(intercept = 6, slope = DataFrameCAL$Sharpe[MaximoSharpe], color = 'magenta') +
+  # Líneas de referencia
+  geom_hline(yintercept = 0, color = 'black') +
+  geom_vline(xintercept = 0, color = 'black') +
+  # Punto del portafolio de máxima Sharpe
+  geom_point(data = data.frame(x = DataFrameCAL[MaximoSharpe, 4] * 100, 
+                               y = DataFrameCAL[MaximoSharpe, 3] * 100), 
+             aes(x = x, y = y), 
+             color = 'red', size = 3) +
+  geom_text(data = data.frame(x = DataFrameCAL[MaximoSharpe, 4] * 100, 
+                              y = DataFrameCAL[MaximoSharpe, 3] * 100), 
+            aes(x = x, y = y, label = "P"), 
+            vjust = -1.5, hjust = 0.5, color = 'black') +
+  labs(title = "Combinaciones retorno-desvío",
+       x = "Desvío Estándar",
+       y = "Retorno Esperado") +
+  theme_minimal()
+
+```
