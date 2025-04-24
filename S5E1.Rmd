@@ -1,0 +1,69 @@
+---
+title: "Ejercicio S5E1"
+output: 
+  html_document:
+    df_print: default
+---
+
+Borro todos los datos almacenados
+
+```{r}
+rm(list = ls())
+graphics.off()
+
+```
+
+#Cargo las librerías que podría llegar a necesitar
+
+```{r}
+#library (tidyverse)
+#library(knitr)
+#library (purrr)
+#library (ggplot2)
+#library (tidyr)
+#library (quantmod)
+#library(flextable)
+```
+
+Se acuerda un contrato a plazo (forward) con vencimiento en un año sobre una acción que no paga dividendos.
+
+#Datos del ejercicio
+
+```{r}
+S0 <- 40
+rf0 <- .1
+S6 <- 45
+rf6 <- .1
+```
+
+#Punto A - Inicio
+
+```{r}
+#Precio a plazo
+
+St <- S0 * exp (rf0)
+
+#Precio inicial del contrato
+
+FWd0 <- 0
+
+paste("El precio a plazo es", round(St,4), "y el precio inicial es", FWd0)
+```
+
+#Punto B - Mes 6
+
+```{r}
+
+Prop <- 6/12 #Meses
+
+#Precio a plazo
+
+Stv2 <- S6 * exp(rf6 * Prop)
+
+#Precio del contrato
+
+FWd6 <- S6 - St * exp(-rf6 * Prop) #El valor del fwd se calcula como el precio menos el valor presente del precio a plazo
+
+paste("El precio a plazo es", round(Stv2,4), "y el precio es", round(FWd6,4))
+
+```
