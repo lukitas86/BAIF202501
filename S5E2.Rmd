@@ -1,0 +1,93 @@
+---
+title: "Ejercicio S5E2"
+output: 
+  html_document:
+    df_print: default
+---
+
+Borro todos los datos almacenados
+
+```{r}
+rm(list = ls())
+graphics.off()
+
+```
+
+#Cargo las librerías que podría llegar a necesitar
+
+```{r}
+#library (tidyverse)
+#library(knitr)
+#library (purrr)
+#library (ggplot2)
+#library (tidyr)
+#library (quantmod)
+#library(flextable)
+```
+
+Se encuentra trabajando en una institución financiera. Un cliente le solicita la cotización para un forward sobre moneda extranjera con vencimiento a un año. La institución no quiere tomar riesgo cambiario.
+
+Nota: La clave del ejercicio es que la institución no quiere quedar expuesta al tipo de cambio. O sea, si vende dólares a futuro, se asegura de tenerlos; si los compra, se asegura de deberlos.
+
+#Datos del ejercicio
+
+```{r}
+MECompra <- 22.3
+MEVenta <- 23
+TEALocalInv <- .26
+TEALocalFin <- .3
+TEAExtInv <- .04
+TEAExtFin <- .06
+```
+
+#Punto A - Long
+
+La institución se compromete a comprar dólares a un precio fijado hoy, pero recién en un año.
+
+Si compra a plazo con el Forward, deberá asegurarse estar vendido a plazo para – de esta manera – no tener una posición abierta de TC
+
+1) Tomo préstamo en USD, tal de estar endeudado por un dólar al vencimiento
+
+2) El dólar que recibo lo vendo
+
+3) Invierto el resultante hasta el vencimiento
+
+```{r}
+
+#Calculo el factor de descuento en ME, considerando la tasa de financiamiento
+FDMEFin <- (1 / 
+           (1+TEAExtFin))
+
+#Uso la fórmula para calcular el precio del fwd
+
+FwdLong <- FDMEFin * MECompra * (1+TEALocalInv)
+
+paste("El precio de un fwd long es", round(FwdLong,3))
+
+```
+
+#Punto B - Short
+
+La institución se compromete a vender dólares a un precio fijado hoy, pero recién en un año. Para cubrirse (evitar riesgo de tipo de cambio), se asegura de tener esos dólares disponibles en ese momento.
+
+Si vende a plazo con el Forward, deberá asegurarse estar comprado a plazo para – de esta manera – no tener una posición abierta de TC
+
+1) Compra la moneda extranjera hoy, sabiendo que la va a poder invertir
+
+2) Pide un préstamo para obtener esos fondos
+
+3) Invierte la moneda extranjera
+
+```{r}
+
+#Calculo el factor de descuento en ME, considerando la tasa de inversión (préstamo)
+FDMEInv <- (1 / 
+           (1+TEAExtInv))
+
+#Uso la fórmula para calcular el precio del fwd
+
+FwdShort <- FDMEInv * MEVenta * (1+TEALocalFin)
+
+paste("El precio de un fwd short es", FwdShort)
+
+```
