@@ -1,0 +1,66 @@
+---
+title: "Bases Actuariales de las Inversiones y Financiaciones - Examen 1 2025 1C Ej
+  6"
+output:
+  html_document:
+    df_print: paged
+---
+
+Número de registro: 846.379
+
+Nombre: Lucas D. Mazza
+
+Borro todos los datos almacenados
+
+```{r}
+rm(list = ls())
+graphics.off()
+
+```
+
+El precio de una acción es $75 y la tasa de interés libre de riesgo es 8% (TNA 6 meses)
+
+#Datos del ejercicio
+
+```{r}
+S0 <- 75
+rf0 <- .08 * 6 /12 #La capitalización de la tasa coincide con el plazo restante del fwd
+S2 <- 80
+rf2 <- .08 * 4/12 #La capitalización de la tasa coincide con el plazo restante del fwd
+```
+
+#Punto A 
+
+Considere un fwd con vencimiento en 6 meses. ¿Cuál es el precio fwd? Si ud. entra short en el contrato ¿Cuál es el valor inicial del contrato?
+
+
+```{r}
+#Precio a plazo
+
+St <- S0 * (1 + rf0)
+
+#Precio inicial del contrato
+
+FWd0 <- 0
+
+paste("El precio a plazo es", round(St,4), "y el precio inicial es", FWd0)
+```
+
+#Punto B 
+2 meses después de la firma del contrato, el precio de la acción es $80 y la tasa de interés libre de riesgo es 8% TNA 4 meses. ¿Cuál es el precio a plazo (forward price) y el valor del contrato a plazo?
+
+```{r}
+
+#Precio a plazo
+
+Stv2 <- S2 * (1 + rf2)
+
+#Precio del contrato
+
+Fwd6 <- S2 - St / (1 + rf2) #El valor del fwd se calcula como el precio menos el valor presente del precio a plazo
+
+ValorContrato <- -Fwd6
+
+paste("El precio a plazo es", round(Stv2,4), "y el valor del contrato para la parte vendedora es", round(ValorContrato,4))
+
+```

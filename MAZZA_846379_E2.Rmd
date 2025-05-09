@@ -1,0 +1,212 @@
+---
+title: "Bases Actuariales de las Inversiones y Financiaciones - Examen 1 2025 1C Ej
+  2"
+output:
+  html_document:
+    df_print: paged
+---
+
+**Número de registro:** 846.379
+
+**Nombre:** Lucas D. Mazza
+
+
+#Borro todos los datos almacenados
+
+```{r}
+rm(list = ls())
+graphics.off()
+```
+
+#Cargo las librerías que podría llegar a necesitar
+
+```{r}
+library(quantmod)
+library(tidyverse)
+library(scales)
+```
+
+
+#Datos del ejercicio
+
+```{r}
+# Definir la tasa libre de riesgo
+RF <- 0.045 #Último dato disponible a la fecha (29/12/23)
+```
+
+#Punto A
+
+#Definir cuáles son la acción y el índice
+
+```{r}
+# Definir los símbolos de la acción y el índice de referencia
+StockSymbol <- "NVDA"  # Símbolo de NVDA
+IndexSymbol <- "^GSPC" # Símbolo del índice S&P 500
+```
+
+#Datos de la acción
+
+```{r}
+getSymbols(StockSymbol, from = "2018-01-01", to = "2023-12-31")
+```
+
+#Datos del índice\
+
+```{r}
+getSymbols(IndexSymbol, from = "2018-01-01", to = "2023-12-31")
+```
+
+#Armar data frame con los datos
+
+```{r}
+data <- tibble(date = index(NVDA), 
+               stock = as.double(NVDA$NVDA.Adjusted),
+               index = as.double(GSPC$GSPC.Adjusted))
+
+```
+
+*#Calcular los retornos diarios*
+
+Notar que hay n-1 retornos y comienzan en el momento 2
+
+```{r}
+data <- data %>%
+  mutate(StockReturn = c(NA, stock[2:n()]/stock[1:(n()-1)] - 1 ),
+         IndexReturn = c(NA, index[2:n()]/index[1:(n()-1)] - 1 ))
+```
+
+#Respuesta punto A
+
+```{r}
+stats <- data %>%
+  summarise(
+    # Índice
+    ER_M = mean(IndexReturn, na.rm = TRUE),
+    ER_A = ER_M * 360,
+    sd_M = sd(IndexReturn, na.rm = TRUE),
+    sd_A = sd_M * sqrt(252),
+    var_M = var(IndexReturn, na.rm = TRUE),
+    var_A = var_M * 252,
+    
+    # Acción
+    mean_R1_h = mean(StockReturn, na.rm = TRUE),
+    mean_R1_A = mean_R1_h * 360,
+    sd_R1_h = sd(StockReturn, na.rm = TRUE),
+    sd_R1_A = sd_R1_h * sqrt(252),
+    var_R1_h = var(StockReturn, na.rm = TRUE),
+    var_R1_A = var_R1_h * 252
+  )
+
+# Calcular covarianza usando los datos existentes
+CovRiRm <- cov(data$StockReturn, data$IndexReturn, use = "complete.obs")
+
+# Usar la varianza del índice ya calculada en stats
+beta <- CovRiRm / stats$var_M
+
+# Mostrar resultados
+cat("Rendimiento anual de la acción:", stats$mean_R1_A, "\n")
+cat("Desvío anual de la acción:", stats$sd_R1_A, "\n")
+cat("Beta de la acción:", beta, "\n")
+```
+#Descomposición de la varianza de los retornos diarios del activo
+
+```{r}
+# Calcular riesgo sistemático
+var_sist <- beta^2 * stats$var_M
+
+# Calcular riesgo no sistemático
+var_no_sist <- stats$var_R1_h - var_sist
+
+# Diferencia para control
+diferencia <- stats$var_R1_h - (var_sist + var_no_sist)
+
+# Porcentajes
+porc_sist <- var_sist / stats$var_R1_h
+porc_no_sist <- var_no_sist / stats$var_R1_h
+
+# Armar resultado en un data frame
+riesgo <- tibble(
+  Varianza = stats$var_R1_h,
+  Sist = var_sist,
+  No_Sist = var_no_sist,
+  Diferencia = diferencia,
+  Porc_Sist = porc_sist,
+  Porc_No_Sist = porc_no_sist
+)
+
+# Mostrar tabla
+print(riesgo)
+```
+
+#Respuesta B
+
+Mostrar el riesgo sistemático de los retornos diarios
+
+```{r}
+# Mostrar el porcentaje de riesgo sistemático
+cat(sprintf("El %.2f%% es riesgo sistematico.\n", porc_sist * 100))
+
+# Mostrar el porcentaje de riesgo no sistemático
+cat(sprintf("El %.2f%% es riesgo no sistematico.\n", porc_no_sist * 100))
+
+```
+
+
+# Punto C
+
+#Datos del índice\
+
+```{r}
+
+IndexAnnualData <- getSymbols(IndexSymbol, from = "1980-01-01", to = "2023-12-31", 
+                              src = "yahoo", adjust = TRUE, auto.assign = FALSE)
+```
+
+#Convertir a datos anuales
+
+```{r}
+IndexYearly <- to.yearly(IndexAnnualData, indexAt = "lastof", drop.time = TRUE)
+```
+
+#Convertir los datos anuales en un tibble
+
+```{r}
+MarketYearly <- tibble(date = index(IndexYearly), 
+                         AdjClose = as.double(Cl(IndexYearly)))
+```
+
+#Calcular los retornos anuales aritméticos
+
+```{r}
+ MarketYearly <- MarketYearly %>%
+  mutate(index_return = c(NA, AdjClose[2:n()]/AdjClose[1:(n()-1)] - 1))
+```
+
+
+```{r}
+
+IndexAnnualFrom1980 <- mean(MarketYearly$index_return, na.rm = TRUE)
+
+# Mostrar el resultado
+cat(sprintf("El retorno esperado de mercado basado en datos de Retornos anuales desde 1950-12-31 es: %.2f%%", 
+            IndexAnnualFrom1980 * 100))
+```
+#Respuesta C
+
+```{r}
+RendEsp <- RF + beta * (IndexAnnualFrom1980 - RF)
+
+paste ("El rendimiento esperado es: ", RendEsp)
+
+```
+#Punto D
+
+#Ratio de Sharpe
+
+```{r}
+
+sharpe <- (stats$mean_R1_A - RF) / stats$sd_R1_A
+
+print(sharpe)
+```
+Se interpreta que NVDA tuvo un rendimiento de 1,35 por cada unidad de riesgo asumida, con lo cual tuvo una mejor performance que el mercado para el período seleccionado.

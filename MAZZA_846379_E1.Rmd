@@ -1,0 +1,81 @@
+---
+title: "Bases Actuariales de las Inversiones y Financiaciones - Examen 1 2025 1C Ej
+  "
+output:
+  html_document:
+    df_print: paged
+---
+
+**Número de registro:** 846.379
+
+**Nombre:** Lucas D. Mazza
+
+#Borro todos los datos almacenados
+
+```{r}
+rm(list = ls())
+graphics.off()
+```
+
+#Cargo las librerías que podría llegar a necesitar
+
+```{r}
+library (tidyverse)
+library(knitr)
+library(flextable)
+```
+
+#Punto A
+
+```{r}
+ValorNominal <- 100
+Precio <- 86
+Plazo <- 6
+
+TEP <- ValorNominal/Precio - 1
+TNA <- TEP * 12 / Plazo
+TEA <- (1 + TEP) ^ (12 / Plazo) - 1
+
+Duration <- (Plazo / 12) #En cupón 0 la duration es el plazo al vencimiento
+
+# Imprimir resultados
+cat("La TNA de 6 meses es:", sprintf("%.2f%%", TNA * 100), "\n")
+cat("La TEA es:", sprintf("%.2f%%", TEA * 100), "\n")
+cat("La duration es:", Duration, "\n")
+```
+
+#Punto B
+
+```{r}
+TNAB <- 0.25
+TEPB <- TNAB * Plazo / 12
+PrecioB <- (ValorNominal) / (1 + TEPB)
+
+# Imprimir resultados
+cat("El nuevo precio seria:", PrecioB, "\n")
+
+```
+
+```{r}
+#Vector de períodos
+Periodo <- c(6,12,18,24)
+
+#Vector de descuentos
+FD <- c(.86 , .74, .69, .62)
+
+# Calcular Spot
+Spot <- (1 / FD)^(12 / Periodo) - 1
+
+# Calcular Forward
+Fwd <- numeric(3)
+for (i in 1:3) {
+  Fwd[i] <- (FD[i] / FD[i+1])^(12 / (Periodo[i+1] - Periodo[i])) - 1
+}
+
+# Mostrar resultados
+cat("Las tasa spot serían:", Spot, "\n")
+cat("Las tasa fwd serían:", Fwd, "\n")
+
+```
+
+#Punto D Las tasas *spot* son decrecientes. Sin embargo, las tasas *fwd* primero bajan y luego suben. Se puede interpretar que el mercado espera que las tasas bajen fuertemente en el mediano plazo y luego se estabilicen a un nivel más bajo que el inicial aunque más alto que en el mediano plazo.

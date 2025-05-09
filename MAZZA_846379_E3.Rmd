@@ -1,0 +1,97 @@
+---
+title: "Bases Actuariales de las Inversiones y Financiaciones - Examen 1 2025 1C Ej
+  "
+output:
+  html_document:
+    df_print: paged
+---
+
+**Número de registro:** 846.379
+
+**Nombre:** Lucas D. Mazza
+
+#Cargo las librerías que podría llegar a necesitar
+
+```{r}
+library (tidyverse)
+library(knitr)
+library(flextable)
+```
+
+#Borro todos los datos almacenados
+
+```{r}
+rm(list = ls())
+graphics.off()
+```
+
+#Datos del ejercicio
+
+T.N.A. son capitalizable semestralmente
+```{r}
+TNAs <- data.frame(Mes = c(6, 12, 18, 24), TNA = c(0.04, 0.045, 0.0475, 0.05))
+```
+
+#Punto A
+
+Calcular tasa forward de 6 meses que comienza en 18 meses
+
+```{r}
+
+# Tasa de interés compuesta para los períodos de 18 y 24 meses
+TNA_18 <- TNAs$TNA[TNAs$Mes == 18]  # TNA a 18 meses
+TNA_24 <- TNAs$TNA[TNAs$Mes == 24]  # TNA a 24 meses
+
+# Calcular tasa forward de 6 meses que comienza en 18 meses
+ForwardRate <- ((1 + TNA_24 / 2) ^ (24 / 12)) / ((1 + TNA_18 / 2) ^ (18 / 12)) - 1
+
+TNAFwd <- ForwardRate * (12/6)
+
+# Mostrar la tasa forward en TNA
+cat("La tasa forward de 6 meses que comienza en 18 meses, expresada en TNA, es:", round(TNAFwd * 100, 4), "%\n")
+```
+
+#PuntoB
+
+¿Cuál es el valor de un FRA que promete pagarle 6% TNA capitaliable semestralmente sobre un principal de 1 millón para el período de 6 meses que comienza en 18 meses?
+
+```{r}
+
+# Nocional
+Nocional <- 1000000
+
+# Datos de tasas de mercado
+TNAs <- data.frame(Mes = c(6, 12, 18, 24), TNA = c(0.04, 0.045, 0.0475, 0.05))
+
+# TNA FRA
+TNA_FRA <- 0.06
+
+# Nocional
+Nocional <- 1000000
+
+# Calcular las tasas efectivas semestrales
+TEP_18 <- TNAs$TNA[TNAs$Mes == 18] / 2  # Tasa efectiva a 18 meses
+TEP_24 <- TNAs$TNA[TNAs$Mes == 24] / 2  # Tasa efectiva a 24 meses
+
+# Calcular los factores de descuento para 18 y 24 meses
+FD_18 <- 1 / (1 + TEP_18) ^ (18 / 6)
+FD_24 <- 1 / (1 + TEP_24) ^ (24 / 6)
+
+# Calcular tasa implícita para el periodo de 18 a 24 meses (tasa implícita del mercado)
+TNA_Forward_Market <- ((1 + TEP_24) ^ 2 / (1 + TEP_18)) - 1
+
+# Calcular el valor del FRA
+ValorFRA <- (TNA_FRA - TNA_Forward_Market) * Nocional * (1 / (1 + TNA_Forward_Market) ^ (18 / 6))
+
+# Resultado
+cat("El valor del FRA es:", round(ValorFRA, 2), "\n")
+
+```
+Hago notar que como me pagan 6% TNA y la tasa en el mercado es menor, entonces, necesariamente el valor del FRA es positivo.
+
+
+#Punto D
+
+El valor de un FRA se calcula asumiendo que la tasa fwd se realizará con certeza, dado que la tasa fwd es el valor esperado de la tasa spot en la fecha de liquidación del mercado
+
+Rta: Falso. Se estructura a partir de las tasas fwd vigentes en un momento tal que el valor sea 0. Eso no implica que en el futuro las tasas se vayan a mantener. Como vimos en este ejemplo, si eso sucede da lugar a pagos de una parte a la otra.

@@ -1,0 +1,67 @@
+---
+title: "Bases Actuariales de las Inversiones y Financiaciones - Examen 1 2025 1C Ej
+  4"
+output:
+  html_document:
+    df_print: paged
+---
+
+**Número de registro:** 846.379
+
+**Nombre:** Lucas D. Mazza
+
+
+#Borro todos los datos almacenados
+
+```{r}
+rm(list = ls())
+graphics.off()
+```
+
+Valor de un swap que paga TNA semestral de 4,6% en 18 meses con un nocional de 1 millón y tasas a 6, 12 y 18 mesees de 4%, 4,5% y 4,75%
+
+**#Punto A**
+```{r}
+# Datos
+Nocional <- 1000000
+TasaFijaPactada <- 0.046 # anual
+PagoFijo <- Nocional * (TasaFijaPactada / 2)
+
+# TNA actuales para cada semestre
+TNA_vec <- c(0.04, 0.045, 0.0475)
+TEP_vec <- TNA_vec / 2  # tasas efectivas semestrales
+
+# Factores de descuento
+FD <- 1 / cumprod(1 + TEP_vec)
+
+# Valor presente de los pagos fijos
+VP_Fijos <- sum(PagoFijo * FD)
+
+# Valor presente del notional
+VP_Nocional <- Nocional * FD[3]
+
+# Valor del swap
+ValorSwap <- VP_Fijos + VP_Nocional - Nocional
+
+# Resultado
+cat("El valor del swap para quien paga fijo y cobra variable es:", round(ValorSwap, 2), "\n")
+```
+
+**#Punto B**
+
+¿Cuál debería ser la TNA si se contratase hoy?
+
+```{r}
+SumaFD <- sum(FD)
+
+# Cálculo de tasa fija semestral
+TasaFijaSemestral <- (1 - FD[3]) / SumaFD
+
+# Convertir a TNA con capitalización semestral
+TNA_Swap <- TasaFijaSemestral * 2
+
+# Resultado
+cat("La TNA que se deberia pactar en el swap hoy es:", round(TNA_Swap * 100, 4), "%\n")
+```
+
+
