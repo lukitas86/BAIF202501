@@ -1,0 +1,255 @@
+---
+title: "Clase Modelos Continuos"
+output:
+  html_document:
+    df_print: paged
+---
+
+#Borro todos los datos almacenados
+
+```{r}
+rm(list = ls())
+graphics.off()
+```
+
+#Cargo las librerías que podría llegar a necesitar
+
+```{r}
+library (tidyverse)
+#library(knitr)
+#library (purrr)
+#library (ggplot2)
+#library (tidyr)
+#library (quantmod)
+library(flextable)
+```
+
+Movimiento Browniano
+
+```{r}
+dt <- 1/252
+z0 <- 10 # cifra elegida al azar
+
+eps <- rnorm (n = 1, mean = 0, sd = 1) #1 repetición, con media 1  y desvío estándar 1
+#Nota: En la clase colocó m = 0 lo cual no es un argumento válido
+dz <- eps*sqrt (dt)
+z_dt <- z0 + dz
+
+eps <- rnorm (n = 1, mean = 0, sd = 1) #1 repetición, con media 1  y desvío estándar 1
+dz <- eps*sqrt (dt)
+z_2dt <- z_dt + dz
+```
+
+Generalizando
+
+```{r}
+tibble (t = seq (0, 1, by = dt)) %>%
+  mutate (eps = rnorm(n=n(), mean = 0, sd = 1)) #n() trae el número de repeticiones
+```
+
+El primer eps está dado, por lo que se corrige por 
+
+```{r}
+tibble (t = seq (0, 1, by = dt)) %>%
+  mutate (eps = c(NA,rnorm(n=n()-1, mean = 0, sd = 1))) #hay que poner n()-1 si no da error
+
+Datos <- tibble (t = seq (0, 1, by = dt)) %>%
+  mutate (eps = c(NA,rnorm(n=n()-1, mean = 0, sd = 1)), dz = eps*sqrt(dt))
+```
+
+```{r}
+z <- rep (NA, nrow(Datos))
+z[1] <- z0 #número elegido al azar, viene dado por la info disponible
+for (i in 2:nrow(Datos)){
+  z[i] <- z[i-1] + Datos$dz[i]
+}
+Datos <- Datos %>%
+  mutate(z)
+
+ggplot (data=Datos, aes (x=t, y=z))+
+  geom_point()
+        
+
+```
+Movimiento browniano generalizado
+
+```{r}
+x0 <- 10
+a <- 2
+b <- 1
+
+Datos <- Datos %>%
+  mutate (dx = a * dt + b * dz)
+
+x <- rep(NA, nrow(Datos))
+x[1] <- x0
+for (i in 2:nrow(Datos)){
+  x[i] <- x[i-1] + Datos$dx[i]
+}
+
+Datos <- Datos %>%
+  mutate (x)
+
+ggplot(data = Datos, aes (x=t, y=x))+
+  geom_line (col="red")
+
+
+```
+
+Repite el código para generar bucle
+
+```{r}
+#Borrar todos los datos
+rm(list = ls())
+graphics.off()
+
+dt <- 1/252
+x0 <- 10 #cifra elegida al azar
+a <- 2
+b <- 1
+
+
+  
+Datos <- tibble (t = seq (0, 1, by = dt)) %>%
+  mutate (eps = c(NA,rnorm(n=n()-1, mean = 0, sd = 1)), 
+          dz = eps*sqrt(dt))
+
+Datos <- Datos %>%
+  mutate (dx = a * dt + b * dz)
+
+x <- rep(NA, nrow(Datos))
+x[1] <- x0
+for (i in 2:nrow(Datos)){
+  x[i] <- x[i-1] + Datos$dx[i]
+}
+
+Datos <- Datos %>%
+  mutate (x)
+
+plot (Datos$t, Datos$x, ylim = c(7,15)) #límite para la visualización del gráfico
+
+for (k in 1:100){
+  
+Datos <- tibble (t = seq (0, 1, by = dt)) %>%
+  mutate (eps = c(NA,rnorm(n=n()-1, mean = 0, sd = 1)), 
+          dz = eps*sqrt(dt))
+
+Datos <- Datos %>%
+  mutate (dx = a * dt + b * dz)  
+  
+x <- rep (NA, nrow(Datos))
+x[1] <- x0
+
+
+x[1] <- x0
+for (i in 2:nrow(Datos)){
+  x[i] <- x[i-1] + Datos$dx[i]
+}
+
+Datos <- Datos %>%
+  mutate (x)
+lines (Datos$t, Datos$x)
+}
+
+```
+Modelo Browniano generalizado (ilustrativo con x dependiendo de x-1)
+
+```{r}
+#Borrar todos los datos
+rm(list = ls())
+graphics.off()
+
+dt <- 1/252
+x0 <- 10 #cifra elegida al azar
+a <- 50/100
+b <- 30/100
+
+# Crear vector de tiempos y simular valores aleatorios eps ~ N(0,1)
+Datos <- tibble (t = seq (0, 1, by = dt)) %>%
+  mutate(eps = c(NA,rnorm(n=n()-1, mean = 0, sd = 1)), 
+          dz = eps*sqrt(dt))
+
+
+x <- rep(NA, nrow(Datos))
+dx <- rep (NA, nrow(Datos))
+x[1] <- x0
+# Construir el proceso acumulando dx
+for (i in 2:nrow(Datos)){
+  dx[i] = x[i-1]* a * dt + x[i-1]* b * Datos$dz[i]
+  x[i] <- x[i-1] + dx[i]
+}
+
+Datos <- Datos %>%
+  mutate (dx,
+          x)
+
+plot (Datos$t, Datos$x, ylim = c(5,40)) #límite para la visualización del gráfico
+
+for (k in 1:100){
+  
+Datos <- tibble (t = seq (0, 1, by = dt)) %>%
+  mutate (eps = c(NA,rnorm(n=n()-1, mean = 0, sd = 1)), 
+          dz = eps*sqrt(dt))
+
+
+x <- rep(NA, nrow(Datos))
+dx <- rep(NA, nrow(Datos))
+x[1] <- x0
+  for (i in 2:nrow(Datos)) {
+    dx[i] <- x[i - 1] * a * dt + x[i - 1] * b * Datos$dz[i]  # igual que arriba
+    x[i] <- x[i - 1] + dx[i]
+  }
+
+
+Datos <- Datos %>%
+  mutate (x)
+lines (Datos$t, Datos$x)
+
+}
+
+```
+Modelo geométrico browniano
+
+```{r}
+#Borrar todos los datos
+rm(list = ls())
+graphics.off()
+
+dt <- 1/252
+S0 <- 10 #cifra elegida al azar
+mu <- 50/100
+sigma <- 30/100
+
+  
+Datos <- tibble (t = seq (0, 1, by = dt)) %>%
+  mutate (eps = c(NA,rnorm(n=n() - 1, mean = 0, sd = 1)))
+
+S <- rep(NA, nrow(Datos))
+S[1] <- S0
+for (i in 2:nrow(Datos)){
+  S[i] = S[i-1]* exp  ( (mu - 0.5 * sigma ^ 2) * dt + sigma * Datos$eps[i]*sqrt(dt) )
+}
+
+Datos <- Datos %>%
+  mutate (S)
+
+plot (Datos$t, Datos$S, ylim = c(0,40)) #límite para la visualización del gráfico
+
+for (k in 1:100){
+  
+Datos <- tibble (t = seq (0, 1, by = dt)) %>%
+  mutate (eps = c(NA,rnorm(n=n()-1, mean = 0, sd = 1)))
+
+S <- rep(NA, nrow(Datos))
+S[1] <- S0
+for (i in 2:nrow(Datos)){
+  S[i] = S[i-1]* exp  ( (mu - 0.5 * sigma ^ 2) * dt + sigma * Datos$eps[i]*sqrt(dt) )  
+  
+}
+
+Datos <- Datos %>%
+  mutate (S)
+lines (Datos$t, Datos$S)
+}
+
+```
