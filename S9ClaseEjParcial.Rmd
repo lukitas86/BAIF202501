@@ -1,0 +1,255 @@
+---
+title: "S7 Ejemplo de parcial"
+output:
+  html_document:
+    df_print: paged
+---
+
+#Borro todos los datos almacenados
+
+```{r}
+rm(list = ls())
+graphics.off()
+```
+
+#Cargo las librerías que podría llegar a necesitar
+
+```{r}
+library (tidyverse)
+#library(knitr)
+#library (purrr)
+#library (ggplot2)
+#library (tidyr)
+#library (quantmod)
+library(flextable)
+```
+
+# Ejercicio Parcial 2024.06.12
+
+El precio de una acción es \$27.67, su volatilidad es 12% y el rendimiento esperado es 7%. La tasa libre de riesgo es 4% anual con composición continua.
+
+```{r}
+  S <- 27.67        # Precio actual de la acción
+  sigma <- 0.12     # Volatilidad anual
+  mu <- 0.07        # Rendimiento esperado anual
+  r <- 0.04         # Tasa libre de riesgo con composición continua
+  Vto <- 0.25       # Tiempo hasta el vencimiento en años
+  n <- 2            # Cantidad de pasos del árbol
+```
+
+## a) Construya un árbol binomial de dos pasos, con plazo total de tres meses.
+
+Paso 1: Calcular Δt, u, d y p
+
+```{r}
+
+Delta_t <- Vto / n                    # 0.125 (tres meses divididos en 2 pasos)
+FD <- exp(-r * Delta_t)               #Factor de descuento
+u <- exp(sigma * sqrt(Delta_t))      
+d <- 1 / u                            
+PNR <- (1/FD - d) / (u - d)           # Probabilidad neutral al riesgo
+
+
+paste0 ("El factor u es: ", round (u,6) , " y la PNR es: ", round (PNR,6))
+
+```
+
+Nodos del árbol
+
+```{r}
+S <- S                     # Precio inicial
+Sd <- S * d                # t = 1, down
+Su <- S * u                # t = 1, up
+Sdd <- Sd * d              # t = 2, down-down
+Sdu <- Sd * u              # t = 2, down-up (equivale a up-down)
+Suu <- Su * u              # t = 2, up-up
+```
+
+```{r}
+arbol <- tibble(
+  t0 = c(S, "", ""),
+  t1 = c(Su, Sd, ""),
+  t2 = c(Suu, Sdu, Sdd)
+)
+
+print(arbol)
+```
+
+## b) Con el árbol construido en el punto a), calcula la prima de un Put Europeo con precio de ejercicio \$28 y vencimiento en tres meses.
+
+Árbol de puts
+
+```{r}
+K <- 28 #Strike
+```
+
+Paso 1: payoffs al vencimiento (Vto=2)
+
+```{r}
+Put_t2 <- c(
+  max(K - Suu, 0),   # up-up
+  max(K - Sdu, 0),   # donw-up (igual a up-down)
+  max(K - Sdd, 0)    # down-down
+)
+```
+
+Paso 2: valores en t=1
+
+```{r}
+Put_t1 <- c(
+  FD * (PNR * Put_t2[1] + (1 - PNR) * Put_t2[2]), # desde Su
+  FD * (PNR * Put_t2[2] + (1 - PNR) * Put_t2[3])  # desde Sd
+)
+```
+
+```{r}
+# Paso 3: valor en t=0
+Put_t0 <- FD * (PNR * Put_t1[1] + (1 - PNR) * Put_t1[2]) # desde S
+```
+
+```{r}
+arbol_put <- tibble(
+  pE0 = c(round(Put_t0, 3), "", ""),
+  pE1 = c(round(Put_t1[1], 3), round(Put_t1[2], 3), ""),
+  pE2 = round(Put_t2, 3)
+)
+
+print(arbol_put)
+
+
+```
+
+```{r}
+paste("La prima del Put Europeo es:", round(Put_t0, 6))
+```
+
+## c. Realice un arbitraje si el precio del Put del punto b) es \$0.60. Considere solamente el camino “down-up” del precio del subyacente para ilustrar la estrategia.
+
+```{r}
+PutMercado <- 0.60
+```
+
+Como el put tiene un precio por debajo del valor teórico, compramos el put y vendemos la cartera teórica, que se compone de la compra de delta acciones. Fondeamos ambos activos con un préstamo a la tasa libre de riesgo.
+
+Construir el árbol de Deltas
+
+```{r}
+# Asignar los valores finales directamente desde los vectores
+pE2u <- Put_t2[1]  
+pE2m <- Put_t2[2]  
+pE2d <- Put_t2[3]  
+
+pE1u <- Put_t1[1]  
+pE1d <- Put_t1[2] 
+```
+
+Calcular los deltas
+
+```{r}
+
+Delta1_up <- (pE2u - pE2m) / (Suu - Sdu)
+Delta1_down <- (pE2m - pE2d) / (Sdu - Sdd)
+Delta0 <- (pE1u - pE1d) / (Su - Sd)
+
+# Creo el árbol de deltas
+Deltas <- tibble(
+  d0 = c(Delta0, NA, NA),
+  d1 = c(Delta1_up, Delta1_down, NA),
+  d2 = c(NA, NA, NA)
+)
+
+Deltas %>% flextable()
+```
+
+*t0: Compramos el put (long), compramos Delta0 acciones, y pedimos un préstamo*
+
+Nota: Los flujos que colocamos están en negativo y los que recibimos en positivo
+
+```{r}
+Pos_Put <- -PutMercado                      # pagamos la prima del put
+Pos_Accion_t0 <- Delta0 * S                 # compramos Delta0 acciones
+Pos_Prest_t0 <- -(Pos_Put + Pos_Accion_t0)  # pedimos a tasa libre de riesgo
+```
+
+*t1: baja, ajustamos Delta* \
+Nota: siempre se debe ajustar delta en cada paso
+
+```{r}
+Pos_Accion_t1 <- Delta1_down * Sd - Delta0 * Sd       #compro más acciones restando las que ya tengo valuadas en t1
+Nuevo_Prest_t1 <- -Pos_Accion_t1                      #Coloco más dinero, ¿cuánto? Lo que preciso comprar
+Pos_Prest_t1 <- Nuevo_Prest_t1 + Pos_Prest_t0 / FD    #La posición en el préstamo es el valor actualizado del préstamo de t=0 + el nuevo préstamos solicitado en t=1
+```
+
+*t2: sube, obtenemos payoff del put + valor del portafolio ajustado*
+
+```{r}
+Put_Pago <- Put_t2[2]                       # nodo down-up
+Pos_Accion_t2 <- -Delta1_down * Sdu         # vendo la acción
+Pos_Prest_t2 <- -Pos_Prest_t1 / FD          # repago el prétamo
+```
+
+```{r}
+# Flujo final en t2
+Flujo_t2 <- Put_Pago + Pos_Accion_t2 + Pos_Prest_t2
+Flujo_t2_Desc <- Flujo_t2 * (FD^2)
+```
+
+Resumen
+
+```{r}
+arbitraje <- tibble(
+  Momento = c("t0", "t1 (down)", "t2 (down-up)"),
+  Put = c(-PutMercado, 0, Put_Pago),
+  Subyacente = c(Pos_Accion_t0, Pos_Accion_t1, Pos_Accion_t2),
+  Colocacion = c(Pos_Prest_t0, Nuevo_Prest_t1 , Pos_Prest_t2),
+  Total = c(0, 0, Flujo_t2)
+)
+
+flextable(arbitraje)
+```
+
+Verificar
+
+```{r}
+PutTeorico <- Put_t0 - PutMercado
+PutReal <- Flujo_t2_Desc
+all.equal(PutTeorico, PutReal, tolerance = 1e-10)
+
+```
+
+## d. Si se negocia un put americano con igual subyacente, strike y vencimiento, calcule la “prima por ejercicio anticipado”.
+
+```{r}
+#Solo cambian los nodos intermedios (t=1)
+
+#En cada momento se debe comparar el valor esperado actualizado y el de ejercer inmediatamente.
+
+Put_t1_Amer <- c(
+  max(K - Su, Put_t1[1]),  # Nodo "up" en t=1
+  max(K - Sd, Put_t1[2])   # Nodo "down" en t=1
+)
+
+# Calcular el valor de la opción en t=0 como valor esperado descontado desde los nodos t=1
+Put_t0_Amer_Opcion1 <- FD * (PNR * Put_t1_Amer[1] + (1 - PNR) * Put_t1_Amer[2]) 
+
+# Nodo inicial (t=0) para el americano
+Put_t0_Amer <- max(K - S, Put_t0_Amer_Opcion1) #El valor del put americano es el mayor entre ejercerlo en el momento y el valor esperado actualizado, con PRN, de los siguientes nodos.
+
+# Prima por ejercicio anticipado
+Prima_EjAnticipado <- Put_t0_Amer - Put_t0  
+
+paste0("La prima por ejercicio anticipado es: ", Prima_EjAnticipado)
+```
+
+Árbol para el put americano
+
+```{r}
+putamericano <- tibble(
+  Momento = c("t0", "t1", "t2"),
+  Momento_0 = c(Put_t0_Amer, 0, 0),
+  Momento_1 = c(Put_t1_Amer[1], Put_t1_Amer[2],0),
+  Momento_2 = c(pE2u, pE2m , pE2d),
+)
+
+flextable(putamericano)
+```
