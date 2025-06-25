@@ -1,0 +1,388 @@
+---
+title: "S10E1"
+output:
+  html_document:
+    df_print: paged
+---
+---
+title: "Clase Modelos Continuos"
+output:
+  html_document:
+    df_print: paged
+---
+
+#Borro todos los datos almacenados
+
+```{r}
+rm(list = ls())
+graphics.off()
+```
+
+#Cargo las librerías que podría llegar a necesitar
+
+```{r}
+library (tidyverse)
+#library(knitr)
+#library (purrr)
+library (ggplot2)
+#library (tidyr)
+#library (quantmod)
+library(flextable)
+```
+
+**PuntoA
+
+Suponga que la acción de GOOG cotiza hoy a $120 y que el precio sigue un movimiento geométrico browniano con tendencia 18% y volatilidad 25%. La tasa libre de riesgo es 6%.
+
+```{r}
+S <- 120        #precio de la accion
+mu <- 0.18      #tendencia
+sigma <- 0.25   #volatilidad
+rf <- 0.06      #tasa libre de riesgo
+q <- 0          #rendimiento del subyacente
+
+```
+
+**Punto A
+Considere una opción de compra (call) sobre cincuenta mil acciones (50.000) con vencimiento en dos meses (tiempo al vencimiento = 2/12 años) y un precio de ejercicio $115. Calcule la prima del contrato usando el modelo de Black y Scholes (BS).
+
+```{r}
+Cant_S <- 50000 #cantidad de acciones
+Vto_0 <- 2/12   #tiempo al vencimiento
+K <- 115        #precio de ejercicio
+```
+
+calculadora BSM
+
+```{r}
+bsm_calculadora <- function(S, K, t, rf, sigma, tipo, q) {
+  d1 <- (log ( S / K ) + (rf - q + 0.5 * sigma^2) * t) / (sigma * sqrt(t))
+  d2 <- d1 - sigma * sqrt(t)
+  
+  if (tipo == "Call") {
+    option_value <- S * exp(-q * t) * pnorm(d1) - K * exp(-rf * t) * pnorm(d2)
+  } else if (tipo == "Put") {
+    option_value <- K * exp(-rf * t) * pnorm(-d2) - S * exp(-q * t) * pnorm(-d1)
+  } else {
+    stop("tipo de opción no válido. Debe ser 'Call' o 'Put'.")
+  }
+  
+  return(option_value)
+}
+```
+
+#Calcular la prima del contrato
+
+```{r}
+#Individual
+primaCall <- bsm_calculadora(S = S, K = K, t = Vto_0, rf = rf, sigma = sigma, tipo = "Call", q = q)
+paste("La prima individual es" , primaCall)
+contratoCall <- primaCall*Cant_S
+paste("La prima del contrato es" , contratoCall)
+```
+**Punto B
+Si vendió el call del punto a) a su valor teórico, determine qué posición debería tomar en el momento inicial para construir una cartera delta-neutral. Explique claramente TODAS las operaciones que debe realizar en el momento inicial y la posición resultante (cantidad de cada instrumento en cartera).
+
+Si vendo calls, preciso comprar delta acciones para neutralizar la posición
+
+```{r}
+
+# Cálculo de delta inicial (t = 0)
+d1 <- (log(S / K) + (rf - q + 0.5 * sigma^2) * Vto_0) / (sigma * sqrt(Vto_0))
+delta_0 <- pnorm(d1) # calculo mi delta (al ser positivo debo comprar subyacente)
+
+# Ingreso por la venta del contrato
+Ingreso_Venta_Call <- contratoCall 
+
+# Cantidad de acciones necesarias para neutralizar delta
+Posicion_Inicial_S <- round(delta_0 * Cant_S,0) # Cantidad de Subyacente que debo comprar en números enteros (no se pueden comprar cantidades discretas de acciones)
+
+Cartera_0 <- -Posicion_Inicial_S * S # Lo que nos cuesta (cuanto vale mi posición en cartera creo)
+
+FlujoDeuda_0 <- Ingreso_Venta_Call + Cartera_0 # Tomo deuda por dicho importe
+
+FF_0 <- FlujoDeuda_0 - (Ingreso_Venta_Call + Cartera_0)
+
+paste("Recibo $", round(Ingreso_Venta_Call,0), "por la venta del contrato.  Compro $", round(Cartera_0,0) ,         " acciones para lo cual tomo deuda por:", round(FlujoDeuda_0,0) )
+
+
+```
+**PuntoC
+Teniendo en cuenta el punto anterior, rebalancee la cartera luego de una semana (considere un time-step de 1/48 años) si el precio de la acción subió a $122. Explique claramente TODAS las operaciones que debe realizar en este momento y la posición resultante (cantidad de cada instrumento en cartera).
+
+```{r}
+dt <- 1/48          #time-step
+S_1 <- 122          # nuevo precio
+
+Vto_1 <- Vto_0 - dt #se reduce el tiempo al vencimiento
+
+# Calculo nuevo d1 con menor tiempo al vencimiento y nuevo precio
+d1 <- (log(S_1 / K) + (rf - q + 0.5 * sigma^2) * Vto_1) / (sigma * sqrt(Vto_1))
+
+# Cálculo del nuevo d1 con menor tiempo y nuevo precio
+delta_1 <- pnorm(d1) #nuevo delta
+Necesidad_1_S <- round(delta_1 * Cant_S, 0) #nueva cantidad de acciones
+
+#Rebalanceo
+Rebalanceo_1 <- Necesidad_1_S - Posicion_Inicial_S
+Costo_S_1 <- Rebalanceo_1 * S_1 #costo del nuevo rebalanceo
+
+# Nueva deuda necesaria para financiar el rebalanceo
+FlujoDeuda_1 <- -Costo_S_1 
+Cartera_1 <- Necesidad_1_S * S_1 # Valor de la nueva cantidad de acciones
+
+Interes_1 <- FlujoDeuda_0 * (exp(rf * dt) - 1)
+StockDeuda_1 <- FlujoDeuda_0 + Interes_1 + FlujoDeuda_1
+
+FF_1 <- FlujoDeuda_1 + Costo_S_1 #valor actualizado del costo del momento 0
+
+paste0 ("Debo comprar $", Costo_S_1, " en acciones,  para lo cual tomo deuda , por $", FlujoDeuda_1)
+
+
+
+```
+**PuntoD
+
+Repita el procedimiento del punto d) en las siguientes 7 semanas hasta el vencimiento, suponiendo que el camino de precios es el presentado en la siguiente tabla. [Notar que los cálculos en t = 0 y en t = 1/48 son los ya realizados, correspondientes a los puntos b) y c)]. Compute la liquidación final y compare el costo de la estrategia con la prima calculada en el punto a).
+
+```{r}
+S_vec <- c(120, 122, 118, 114, 111, 114, 110, 108, 113)
+Semana <- seq(0,8)
+t <- seq(0, 8/48, by=1/48) # Tiempos correspondientes en años (asumimos 1 semana = 1/48 de año)
+N <- length(t) # Número de pasos de tiempo (n = 9)
+Vto_vec <- 8/48 - t
+
+# Inicialización de vectores
+delta <- rep(NA, N)
+Necesidad <- rep(NA, N)        # Necesidad de acciones (redondeada)
+CompraVenta <- rep(NA, N)     # Cantidad a comprar o vender cada semana
+CostoSemana <- rep(NA, N)     # $ gastado o recibido por rebalanceo
+ValorAcciones <- rep(NA, N)   # Valor de la posición en acciones
+FlujoDeuda <- rep(NA, N)       #Préstamo o deuda de esa semana
+StockDeuda <- rep(NA, N)           # Deuda acumulada
+Interes <- rep(NA, N)         # Interés semanal
+FlujosSemanal <- rep(NA, N)  # Para comprobar que el PN es aprox. 0 al final de cada semana
+
+
+# Semana 0: ya vendimos el call y compramos acciones delta*Cant_S
+# Usamos los valores de t=0 (puntos b y c)
+delta[1] <- delta_0                    
+Necesidad[1] <- Posicion_Inicial_S    
+CompraVenta[1] <- Posicion_Inicial_S 
+CostoSemana[1] <- Cartera_0 
+ValorAcciones[1] <- Cartera_0 
+FlujoDeuda[1] <- FlujoDeuda_0 
+StockDeuda[1] <- FlujoDeuda_0            
+Interes[1] <- 0
+FlujosSemanal [1] <- FF_0
+
+## --- Semanas 1 a 8 --- ##
+for (i in 2:N) {
+  d1 <- (log(S_vec[i] / K) + (rf - q + 0.5 * sigma^2) * Vto_vec[i]) / (sigma * sqrt(Vto_vec[i]))
+  delta[i] <- pnorm(d1)
+  Necesidad[i] <- round(delta[i] * Cant_S, 0)
+  
+  CompraVenta[i] <- Necesidad[i] - Necesidad[i - 1]
+  CostoSemana[i] <- CompraVenta[i] * S_vec[i]
+  ValorAcciones[i] <- Necesidad[i] * S_vec[i]
+  
+  Interes[i] <- StockDeuda[i - 1] * (exp(rf * dt) - 1)
+  FlujoDeuda[i] <- - CostoSemana[i]
+  StockDeuda[i] <- StockDeuda[i - 1] + Interes[i] + FlujoDeuda[i] 
+  FlujosSemanal[i] <- CostoSemana[i] + FlujoDeuda[i]
+}
+
+
+```
+
+#Tabla para visualizar más fácilmente
+```{r}
+library(tidyverse)
+
+Resumen <- tibble(
+  Semana = Semana,
+  Precio = S_vec,
+  Delta = round(delta, 4),
+  Acciones = Necesidad,
+  CompraVenta = CompraVenta,
+  CostoSemana = CostoSemana,
+  FlujoDeuda = FlujoDeuda,
+  InteresDeudaSemAnterior = Interes,
+  StockDeuda = StockDeuda,
+  ValorAcciones = ValorAcciones,
+  FlujosSemanal = FlujosSemanal
+) %>%
+  mutate(across(c(CostoSemana, FlujoDeuda, InteresDeudaSemAnterior,
+                  StockDeuda, ValorAcciones, FlujosSemanal), round, 0))
+
+print(Resumen)
+```
+
+
+```{r}
+# En el vencimiento
+S_final <- S_vec[N]
+StockDeuda_Final <- StockDeuda[N]
+Acciones_Final <- Necesidad[N]
+
+# Si el call no se ejerce (S < K), no entregamos acciones
+Cobro_Call <- ifelse(S_final > K, K * Cant_S, 0)
+
+# Valor final de las acciones
+ValorAcciones_Final <- Acciones_Final * S_final
+
+# Flujo final neto: cobro por el call (si lo hay) + valor de acciones - deuda pendiente
+Flujo_Final <- Cobro_Call + ValorAcciones_Final - StockDeuda_Final
+
+# Valor presente del flujo final (trayéndolo a t = 0)
+VP_Flujo_Final <- Flujo_Final * exp(-rf * t[N])
+
+# Resultado neto: valor presente del flujo final + lo que recibiste inicialmente (la prima del call)
+Resultado_Neto <- VP_Flujo_Final + contratoCall
+
+# Mostrar resultados clave
+cat("Valor presente del flujo final:", round(VP_Flujo_Final, 0), "\n")
+cat("Prima inicial recibida:", round(contratoCall, 0), "\n")
+cat("Resultado total de la estrategia:", round(Resultado_Neto, 0), "\n")
+```
+
+**Punto E
+
+Realice 5,000 simulaciones de precios y repita el procedimiento los puntos b) a d), calculando en cada una de ellas la liquidación final. A partir de las 5,000 liquidaciones simuladas, determine un intervalo de confianza del 99% para el resultado de la estrategia delta-neutral.
+
+```{r}
+# Parámetros base
+Simulaciones <- 5000
+PasosSim <- 8
+dtSim <- 1/48
+T_Sim <- PasosSim * dtSim
+
+S0_Sim <- 120
+mu_Sim <- 0.18
+sigma_Sim <- 0.25
+rf_Sim <- 0.06
+q_Sim <- 0
+K_Sim <- 115
+Cant_Sim <- 50000
+Ingreso_Venta_Call_Sim <- Ingreso_Venta_Call
+Cartera_0_Sim  <- Cartera_0   
+
+# Matriz de precios simulados
+S_simuladas <- matrix(NA, nrow = PasosSim + 1, ncol = Simulaciones)
+S_simuladas[1, ] <- S0_Sim
+
+# Generar trayectorias movimiento geométrico browniano
+for (j in 1:Simulaciones) {
+  for (i in 2:(PasosSim + 1)) {
+    Z <- rnorm(1)
+    S_simuladas[i, j] <- S_simuladas[i - 1, j] * exp((mu_Sim - 0.5 * sigma_Sim^2) * dtSim + sigma_Sim * sqrt(dtSim) * Z)
+  }
+}
+
+resultado_estrategia_sim <- function(S_caminado) {
+  N_sim <- length(S_caminado)
+  Vto_caminado <- rev(seq(0, T_Sim, by = dtSim))  # tiempo al vencimiento decreciente
+  
+  delta_s <- rep(NA, N_sim)
+  Necesidad_s <- rep(NA, N_sim)
+  CompraVenta_s  <- rep(NA, N_sim)
+  CostoSemana_s  <- rep(NA, N_sim)
+  Interes_s <- rep(NA, N_sim)
+  FlujoDeuda_s  <- rep(NA, N_sim)
+  StockDeuda_s  <- rep(NA, N_sim)
+
+  # Semana 0
+  d1_0 <- (log(S_caminado[1] / K_Sim) + (rf_Sim - q_Sim + 0.5 * sigma_Sim^2) * Vto_caminado[1]) / (sigma_Sim * sqrt(Vto_caminado[1]))
+  delta_s[1] <- pnorm(d1_0)
+  Necesidad_s[1] <- round(delta_s[1] * Cant_Sim, 0)
+  CostoSemana_s[1] <- Necesidad_s[1] * S_caminado[1]
+  Interes_s[1] <- 0
+  FlujoDeuda_s[1] <- Ingreso_Venta_Call_Sim + Cartera_0_Sim
+    StockDeuda_s [1] <- FlujoDeuda_s[1]
+
+  # Semanas 1 a 8
+  for (i in 2:N_sim) {
+    d1_i <- (log(S_caminado[i] / K_Sim) + (rf_Sim - q_Sim + 0.5 * sigma_Sim^2) * Vto_caminado[i]) / (sigma_Sim * sqrt(Vto_caminado[i]))
+    delta_s[i] <- pnorm(d1_i)
+    Necesidad_s[i] <- round(delta_s[i] * Cant_Sim, 0)
+    CompraVenta_s[i] <- Necesidad_s[i] - Necesidad_s[i - 1]
+    CostoSemana_s[i] <- CompraVenta_s[i] * S_caminado[i]
+    Interes_s[i] <- StockDeuda_s[i - 1] * (exp(rf_Sim * dtSim) - 1)
+    FlujoDeuda_s[i] <- -CostoSemana_s[i]
+    StockDeuda_s[i] <- StockDeuda_s[i - 1] + Interes_s[i] + FlujoDeuda_s[i]
+  }
+
+  # Valor de entrega al vencimiento por el call vendido
+  EntregaCall_s <- ifelse(S_caminado[N_sim] > K_Sim, K_Sim * Cant_Sim, 0)
+  
+  # Liquidación final
+  Resultado_s  <- EntregaCall_s - StockDeuda_s[N_sim]
+  return(Resultado_s)
+}
+
+ResultadosSim  <- apply(S_simuladas, 2, resultado_estrategia_sim)
+
+Promedio_sim <- mean(ResultadosSim)
+Desvio_sim <- sd(ResultadosSim)
+ProbabilidadPerdida_sim <- mean(ResultadosSim < 0)
+IC_99_sim <- quantile(ResultadosSim, probs = c(0.005, 0.995))
+IC_99_sim
+Promedio_sim
+Desvio_sim
+ProbabilidadPerdida_sim 
+
+```
+
+**Punto F
+Cuánto debería cobrar como mínimo por la venta del call para que la probabilidad de tener una pérdida (si implementa la estrategia delta neutral) sea menor a 10%.
+
+
+```{r}
+VP_Costo <- ResultadosSim - Ingreso_Venta_Call_Sim
+
+Prima_minima <- function(prima_cobrada) {
+  Resultado_nuevo <- VP_Costo + prima_cobrada
+  mean(Resultado_nuevo < 0)
+}
+
+PrimaMinima <- uniroot(function(x) Prima_minima(x) - 0.10, lower = 0, upper = 3e6)$root
+PrimaMinimaPorAccion <- PrimaMinima/Cant_Sim 
+PrimaMinimaPorAccion
+
+```
+Calcule la volatilidad implícita de la prima establecida en el punto anterior.
+
+```{r}
+#Calcular vega
+calculo_vega <- function(S, K, t, rf, sigma, tipo = "Call", q = 0) {
+  d1 <- (log(S / K) + (rf - q + 0.5 * sigma^2) * t) / (sigma * sqrt(t))
+  return(S * exp(-q * t) * dnorm(d1) * sqrt(t))
+}
+
+volatilidad_implicita <- function(S, K, t, rf, tipo, prima_opcion, q = 0, x0 = 0.2, tol = 1e-6, max_iter = 1000) {
+  x <- x0
+  iter <- 0
+  
+  while ((abs(bsm_calculadora(S, K, t, rf, x, tipo, q) - prima_opcion) > tol) && iter < max_iter) {
+    vega <- calculo_vega(S, K, t, rf, x, tipo, q)
+    if (vega < 1e-8) break
+    x <- x - (bsm_calculadora(S, K, t, rf, x, tipo, q) - prima_opcion) / vega
+    iter <- iter + 1
+  }
+  
+  return(x)
+}
+
+
+volatilidad_minima_implicita <- volatilidad_implicita(S = 120,
+                                                      K = 115,
+                                                      t = 8/48,
+                                                      rf = 0.06,
+                                                      tipo = "Call",
+                                                      prima_opcion = PrimaMinimaPorAccion,
+                                                      q = 0)
+
+cat("Volatilidad implícita asociada a la prima mínima:", round(volatilidad_minima_implicita, 6))
+```
+
+
