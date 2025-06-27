@@ -315,7 +315,9 @@ tibble(
 
 ```
 
-Concepto breve (útil para el examen):
+#i ¿Convergen EWMA y EWMA corregido 
+
+Concepto breve
 El cálculo de la volatilidad EWMA "corregido" ajusta la fórmula para garantizar que el estimador de varianza sea insesgado en muestras finitas.
 
 Versión sin corrección: asume un número infinito de observaciones, de modo que la suma de los pesos se aproxima a 1.
@@ -334,51 +336,65 @@ Para series largas, de 250 datos o más, con un lambda de 0.94, la diferencia es
 #j. Evolución de la cartera usando proporciones actuales
 
 ```{r}
-# Calcular valor actual de cada posición
-PosTSLA <- AccionesTSLA * PrecioTSLA
-PosNVDA <- AccionesNVDA * PrecioNVDA
+# Pesos actuales en la cartera
+PesoTSLA <- PosTSLA / Cartera
+PesoNVDA <- PosNVDA / Cartera
 
-# Valor total de la cartera
-ValorCartera <- PosTSLA + PosNVDA
+# Crear columna con cartera ponderada fija
+stock_data <- stock_data %>%
+  mutate(cartera = PesoTSLA * TSLA + PesoNVDA * NVDA)
 
-# Calcular las ponderaciones (pesos) en la cartera
-PesoTSLA <- PosTSLA / ValorCartera
-PesoNVDA <- PosNVDA / ValorCartera
+# Calcular rendimientos semanales (5 días) no solapados
+secuencia <- seq(1, nrow(stock_data) - 5, by = 5)
+R_sem <- vector("numeric", length = length(secuencia))
 
-# Vector con las proporciones actuales (calculadas previamente)
-Pesos <- c(PesoTSLA, PesoNVDA)
+for(i in seq_along(secuencia)) {
+  idx <- secuencia[i]
+  R_sem[i] <- log(stock_data$cartera[idx + 5] / stock_data$cartera[idx])
+}
 
-# Crear índice ponderado con las proporciones actuales
+# VaR no paramétrico con corrección por la media de los rendimientos
+# Se suma el retorno promedio para ajustar el VaR histórico y hacerlo más preciso
+VaR_NoParam_Prop <- -Cartera * (quantile(R_sem, 0.01, na.rm = TRUE) + mean(R_sem, na.rm = TRUE))
+
+paste("VaR no paramétrico con proporciones (ajustado):", round(VaR_NoParam_Prop, 2))
+
+
+
+```
+#k. VaR con cantidades fijas
+```{r}
+
+
+# Cantidades fijas para cada activo
+Cantidades <- c(AccionesTSLA, AccionesNVDA)
+
+# Crear índice multiplicando precios por cantidades fijas
 stock_data <- stock_data %>%
   mutate(
-    IndiceCartera = TSLA * Pesos[1] + NVDA * Pesos[2]
+    IndiceCarteraCant = TSLA * Cantidades[1] + NVDA * Cantidades[2]
   )
 
-# Definir el intervalo (5 días) para agrupar rendimientos
-intervalo <- 5
-
-# Obtener índices empezando desde n-1 para no perder datos recientes
-IndicesUsados <- seq(nrow(stock_data) - 1, 1, by = -intervalo)
-
-# Seleccionar filas correspondientes y ordenar por fecha ascendente
-IndiceReducido <- stock_data %>%
-  slice(IndicesUsados) %>%
+# Usar el mismo intervalo que en j (cada 5 días)
+IndiceReducidoCant <- stock_data %>%
+  slice(secuencia) %>%
   arrange(date)
 
 # Calcular rendimientos logarítmicos con saltos de 5 días
-Rendimientos5d <- log(IndiceReducido$IndiceCartera[-1] / IndiceReducido$IndiceCartera[-nrow(IndiceReducido)])
+RendimientosCant <- log(IndiceReducidoCant$IndiceCarteraCant[-1] / IndiceReducidoCant$IndiceCarteraCant[-nrow(IndiceReducidoCant)])
 
-# Calcular el valor actual de la cartera (puede estar calculado antes)
-ValorCartera <- PrecioTSLA * AccionesTSLA + PrecioNVDA * AccionesNVDA
+# Valor total actual de la cartera (última observación del índice con cantidades)
+ValorCarteraCant <- IndiceReducidoCant$IndiceCarteraCant[nrow(IndiceReducidoCant)]
 
-# Calcular VaR no paramétrico al 99% de confianza
-VaRNoParametrico <- -quantile(Rendimientos5d, 0.01, na.rm = TRUE) * ValorCartera
+# VaR no paramétrico con cantidades ajustado por la media de los rendimientos
+# Se suma el retorno promedio para ajustar el VaR histórico y hacerlo más preciso
+VaR_NoParam_Cant <- -ValorCarteraCant * (quantile(RendimientosCant, 0.01, na.rm = TRUE) + mean(RendimientosCant, na.rm = TRUE))
 
-# Mostrar resultado
-paste0("El VaR no paramétrico (99%) con proporciones actuales es: USD ", round(VaRNoParametrico, 2))
+paste("VaR no paramétrico con cantidades (ajustado):", round(VaR_NoParam_Cant, 2))
+
+
 
 ```
-
 
 
 
