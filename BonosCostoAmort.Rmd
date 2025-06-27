@@ -1,0 +1,209 @@
+---
+title: "Amort Bonos"
+output: html_notebook
+---
+
+#Borro todos los datos almacenados
+
+```{r}
+rm(list = ls())
+graphics.off()
+```
+
+#Cargo las librerías que podría llegar a necesitar
+
+```{r}
+library (tidyverse)
+#library(knitr)
+#library (purrr)
+#library (ggplot2)
+#library (tidyr)
+#library (quantmod)
+library(flextable)
+```
+
+# Datos 
+```{r}
+PrecioCompra <- 980
+VNBono <- 1000
+Cupon <- 0.06
+Vto <- 5
+Comision <- 0.01
+```
+
+#######################
+#a. Valuación inicial
+#######################
+
+```{r}
+Valor0 <- PrecioCompra + (PrecioCompra * Comision)
+
+# Calcular el costo total pagado por los $100.000 comprados
+Cantidad <- 100
+VN <- Cantidad * VNBono
+InversionInicial <- Cantidad * Valor0
+
+paste ("El costo total pagado es:", InversionInicial)
+```
+
+
+#######################
+#b. Construir los flujos de efectivo del bono y Calcular TIR
+#######################
+
+#######################
+#b.1. Construir los flujos de efectivo del bono
+#######################
+
+```{r}
+FlujoCupon <- Cantidad * VNBono * 0.06
+FlujoPrincipal <- VN
+
+Flujos <- c(-InversionInicial, rep(FlujoCupon,4), FlujoCupon + FlujoPrincipal)
+
+cat("Los flujos de fondos son:", Flujos, "\n")
+```
+
+
+#######################
+#b.2. Calcular TIR
+#######################
+
+
+```{r}
+# Calcular la TIR usando uniroot
+
+# 1. Calcular VAN
+#Esta fórmula es auxiliar para el siguiente cálculo
+VAN <- function(i, cashflows) {
+  sum(cashflows / (1 + i)^(0:(length(cashflows) - 1)))
+}
+
+# 2. Calcular la TIR
+# Busca el valor de raíz que hace que el VAN sea 0
+TIR <- function(i) VAN(i, Flujos)
+TIR <- uniroot(TIR, interval = c(-0.99, 1))$root
+
+paste ("La TIR es:", TIR)
+```
+
+#######################
+#c. Valuar a costo amortizado
+#######################
+
+
+```{r}
+# Inicializar vectores para almacenar resultados
+CostoAmortizado <- numeric(Vto + 1)
+CostoAmortizado[1] <- InversionInicial
+
+IngresosFin <- numeric(Vto)
+Cobros <- Flujos[2:6] #Los cobros ya fueron calculados arriba, quitar inversión inicial
+
+
+# Calcular el cuadro de costo amortizado
+for (t in 1:Vto) {
+  IngresosFin[t] <- CostoAmortizado[t] * TIR
+  CostoAmortizado[t + 1] <- CostoAmortizado[t] + IngresosFin[t] - Cobros[t]
+}
+
+# Crear el data frame con los resultados
+resultados <- tibble(
+  Año = 0:Vto,
+  CostoAmortizadoIni = c(NA, CostoAmortizado[-(Vto + 1)]),
+  IngresoFin = c(0, IngresosFin),
+  Cobros = c(0, Cobros),
+  CostoAmortizadoFin = CostoAmortizado
+)
+
+# Asegurar que el costo amortizado final sea 0 en el último periodo
+resultados$CostoAmortizadoFin[Vto + 1] <- 0
+
+print(round(resultados,2))
+```
+
+
+#######################
+#d. Calcular amortización prima y ajuste valor de mercado
+#######################
+
+#######################
+#d.1. Calcular amortización prima
+#######################
+
+```{r}
+AmortizacionPrima <- resultados$IngresoFin[2:6] - FlujoCupon
+
+cat("Las amortizaciones de las primas son:", AmortizacionPrima, "\n")
+```
+
+
+#######################
+#d.2. Calcular ajuste valor de mercado
+#######################
+
+```{r}
+# Computar precio de mercado del portafolios
+Precios <- c(960, 950, 975, 990)
+ValorMercadoPort <- Cantidad * Precios
+
+#Comparar precio de costo amortizado en cada momento
+
+AjustePM <- resultados$CostoAmortizadoFin[2:5] - ValorMercadoPort
+
+cat("Los ajustes de mercado son:", AjustePM, "\n")
+```
+
+#######################
+#Tabla visual de resumen
+#######################
+
+```{r}
+# Definir precios de mercado 
+PreciosMercadoUnit <- c(960, 950, 975, 990)
+PrecioMercadoTotal <- c(NA, Cantidad * PreciosMercadoUnit, NA)  # NA en año 0 y 5
+
+# Calcular amortización de la prima (años 1 a 5)
+AmortizacionPrima <- resultados$IngresoFin - c(0, rep(FlujoCupon, Vto))
+AmortizacionPrima[1] <- NA  # No existe para año 0
+
+# Calcular ajuste de mercado (años con precio)
+AjusteMercado <- resultados$CostoAmortizadoFin - PrecioMercadoTotal
+
+# Agregar columnas calculadas al tibble
+resultados <- resultados %>%
+  mutate(
+    Cobros = -round(Cobros, 2),
+    CostoAmortInicio = round(CostoAmortizadoIni, 2),
+    IngresoFin = round(IngresoFin, 2),
+    CostoAmortFin = round(CostoAmortizadoFin, 2),
+    AmortizacionPrima = round(AmortizacionPrima, 2),
+    PrecioMercado = round(PrecioMercadoTotal, 2),
+    AjusteMercado = round(AjusteMercado, 2)
+  )
+
+# Orden de columnas
+resultados_final <- resultados %>%
+  select(
+    Año,
+    CostoAmortizadoIni,
+    IngresoFin,
+    Cobros,
+    CostoAmortizadoFin,
+    AmortizacionPrima,
+    PrecioMercado,
+    AjusteMercado
+  )
+
+flextable(resultados_final) %>%
+  autofit() %>%
+  theme_booktabs()
+
+
+```
+
+
+
+
+
+
